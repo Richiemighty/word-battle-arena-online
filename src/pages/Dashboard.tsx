@@ -18,6 +18,10 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import FriendSearch from "@/components/FriendSearch";
+import FriendsList from "@/components/FriendsList";
+import Leaderboard from "@/components/Leaderboard";
+import Chat from "@/components/Chat";
 
 interface Profile {
   id: string;
@@ -231,46 +235,17 @@ const Dashboard = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="friends" className="mt-6">
-            <Card className="bg-gradient-card">
-              <CardHeader>
-                <CardTitle>Friends & Connections</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-center py-8">
-                  Friend system coming soon! You'll be able to add friends, send game requests, and see who's online.
-                </p>
-              </CardContent>
-            </Card>
+          <TabsContent value="friends" className="mt-6 space-y-6">
+            <FriendSearch currentUserId={profile.id} />
+            <FriendsList currentUserId={profile.id} />
           </TabsContent>
 
           <TabsContent value="leaderboard" className="mt-6">
-            <Card className="bg-gradient-card">
-              <CardHeader>
-                <CardTitle>Global Leaderboard</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-center py-8">
-                  Leaderboard coming soon! Compete with players worldwide and climb the ranks.
-                </p>
-              </CardContent>
-            </Card>
+            <Leaderboard />
           </TabsContent>
 
           <TabsContent value="chat" className="mt-6">
-            <Card className="bg-gradient-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5" />
-                  Chat with Friends
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-center py-8">
-                  Chat system coming soon! Message your friends and coordinate your battles.
-                </p>
-              </CardContent>
-            </Card>
+            <Chat currentUserId={profile.id} />
           </TabsContent>
         </Tabs>
       </div>
