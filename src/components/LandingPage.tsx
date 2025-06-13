@@ -1,16 +1,31 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sword, Users, Trophy, Zap } from "lucide-react";
+import { Sword, Users, Trophy, Zap, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface LandingPageProps {
   onStartGame: () => void;
 }
 
 const LandingPage = ({ onStartGame }: LandingPageProps) => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 flex flex-col items-center justify-center p-6">
       <div className="max-w-4xl mx-auto text-center space-y-8">
+        {/* Header with Auth Button */}
+        <div className="absolute top-6 right-6">
+          <Button 
+            onClick={() => navigate("/auth")}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <User className="h-4 w-4" />
+            Sign In / Sign Up
+          </Button>
+        </div>
+
         {/* Main Title */}
         <div className="space-y-4">
           <h1 className="text-6xl md:text-8xl font-bold gradient-text battle-pulse">
@@ -67,17 +82,27 @@ const LandingPage = ({ onStartGame }: LandingPageProps) => {
           </Card>
         </div>
 
-        {/* CTA Button */}
+        {/* CTA Buttons */}
         <div className="space-y-4">
-          <Button 
-            onClick={onStartGame}
-            size="lg" 
-            className="text-2xl px-12 py-6 bg-gradient-battle hover:opacity-90 battle-glow transition-all duration-300"
-          >
-            START BATTLE
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button 
+              onClick={onStartGame}
+              size="lg" 
+              className="text-xl px-8 py-4 bg-gradient-battle hover:opacity-90 battle-glow transition-all duration-300"
+            >
+              PRACTICE MODE
+            </Button>
+            <Button 
+              onClick={() => navigate("/auth")}
+              size="lg" 
+              variant="outline"
+              className="text-xl px-8 py-4 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300"
+            >
+              JOIN THE BATTLE
+            </Button>
+          </div>
           <p className="text-sm text-muted-foreground">
-            Practice mode • Full multiplayer coming soon
+            Practice mode available now • Create account for multiplayer battles
           </p>
         </div>
       </div>

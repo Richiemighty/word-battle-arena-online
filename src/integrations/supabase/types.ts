@@ -9,13 +9,266 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      chat_messages: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          receiver_id: string | null
+          sender_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          receiver_id?: string | null
+          sender_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          receiver_id?: string | null
+          sender_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friendships: {
+        Row: {
+          addressee_id: string | null
+          created_at: string | null
+          id: string
+          requester_id: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          addressee_id?: string | null
+          created_at?: string | null
+          id?: string
+          requester_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          addressee_id?: string | null
+          created_at?: string | null
+          id?: string
+          requester_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friendships_addressee_id_fkey"
+            columns: ["addressee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "friendships_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_moves: {
+        Row: {
+          created_at: string | null
+          game_id: string | null
+          id: string
+          is_valid: boolean | null
+          player_id: string | null
+          points_earned: number | null
+          time_taken: number | null
+          word: string
+        }
+        Insert: {
+          created_at?: string | null
+          game_id?: string | null
+          id?: string
+          is_valid?: boolean | null
+          player_id?: string | null
+          points_earned?: number | null
+          time_taken?: number | null
+          word: string
+        }
+        Update: {
+          created_at?: string | null
+          game_id?: string | null
+          id?: string
+          is_valid?: boolean | null
+          player_id?: string | null
+          points_earned?: number | null
+          time_taken?: number | null
+          word?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_moves_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "game_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_moves_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_sessions: {
+        Row: {
+          category: string
+          created_at: string | null
+          current_turn: string | null
+          id: string
+          player1_id: string | null
+          player1_score: number | null
+          player2_id: string | null
+          player2_score: number | null
+          status: string | null
+          updated_at: string | null
+          winner_id: string | null
+          words_used: Json | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          current_turn?: string | null
+          id?: string
+          player1_id?: string | null
+          player1_score?: number | null
+          player2_id?: string | null
+          player2_score?: number | null
+          status?: string | null
+          updated_at?: string | null
+          winner_id?: string | null
+          words_used?: Json | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          current_turn?: string | null
+          id?: string
+          player1_id?: string | null
+          player1_score?: number | null
+          player2_id?: string | null
+          player2_score?: number | null
+          status?: string | null
+          updated_at?: string | null
+          winner_id?: string | null
+          words_used?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_sessions_current_turn_fkey"
+            columns: ["current_turn"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_sessions_player1_id_fkey"
+            columns: ["player1_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_sessions_player2_id_fkey"
+            columns: ["player2_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_sessions_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          display_name: string | null
+          id: string
+          is_online: boolean | null
+          last_seen: string | null
+          rank: string | null
+          total_credits: number | null
+          total_draws: number | null
+          total_losses: number | null
+          total_wins: number | null
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id: string
+          is_online?: boolean | null
+          last_seen?: string | null
+          rank?: string | null
+          total_credits?: number | null
+          total_draws?: number | null
+          total_losses?: number | null
+          total_wins?: number | null
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          is_online?: boolean | null
+          last_seen?: string | null
+          rank?: string | null
+          total_credits?: number | null
+          total_draws?: number | null
+          total_losses?: number | null
+          total_wins?: number | null
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_user_online_status: {
+        Args: { user_id: string; is_online: boolean }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
