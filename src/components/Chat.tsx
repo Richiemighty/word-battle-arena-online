@@ -62,8 +62,8 @@ const Chat = ({ currentUserId }: ChatProps) => {
       const { data, error } = await supabase
         .from("friendships")
         .select(`
-          requester:requester_id(id, username, display_name, is_online),
-          addressee:addressee_id(id, username, display_name, is_online)
+          requester:profiles!friendships_requester_id_fkey(id, username, display_name, is_online),
+          addressee:profiles!friendships_addressee_id_fkey(id, username, display_name, is_online)
         `)
         .eq("status", "accepted")
         .or(`requester_id.eq.${currentUserId},addressee_id.eq.${currentUserId}`);
@@ -92,8 +92,8 @@ const Chat = ({ currentUserId }: ChatProps) => {
           id,
           message,
           created_at,
-          sender:sender_id(id, username, display_name),
-          receiver:receiver_id(id, username, display_name)
+          sender:profiles!chat_messages_sender_id_fkey(id, username, display_name),
+          receiver:profiles!chat_messages_receiver_id_fkey(id, username, display_name)
         `)
         .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUserId})`)
         .order("created_at", { ascending: true });

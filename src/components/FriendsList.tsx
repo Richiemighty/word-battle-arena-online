@@ -57,8 +57,8 @@ const FriendsList = ({ currentUserId }: FriendsListProps) => {
           id,
           status,
           created_at,
-          requester:requester_id(id, username, display_name, rank, is_online),
-          addressee:addressee_id(id, username, display_name, rank, is_online)
+          requester:profiles!friendships_requester_id_fkey(id, username, display_name, rank, is_online),
+          addressee:profiles!friendships_addressee_id_fkey(id, username, display_name, rank, is_online)
         `)
         .or(`requester_id.eq.${currentUserId},addressee_id.eq.${currentUserId}`)
         .order("created_at", { ascending: false });
