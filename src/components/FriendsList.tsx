@@ -148,17 +148,17 @@ const FriendsList = ({ currentUserId }: FriendsListProps) => {
                   {activeFriends.map((friendship) => {
                     const friend = getFriendData(friendship);
                     return (
-                      <div
-                        key={friendship.id}
-                        className="flex items-center justify-between p-4 border border-border rounded-lg"
-                      >
+                        <div
+                          key={friendship.id}
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4"
+                        >
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gradient-battle rounded-full flex items-center justify-center">
+                          <div className="shrink-0 w-12 h-12 bg-gradient-battle rounded-full flex items-center justify-center">
                             <Users className="h-6 w-6 text-white" />
                           </div>
-                          <div>
-                            <p className="font-medium">{friend.display_name || friend.username}</p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{friend.display_name || friend.username}</p>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                               <Badge variant="secondary">{friend.rank}</Badge>
                               <div className="flex items-center gap-1">
                                 <div className={`w-2 h-2 rounded-full ${friend.is_online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
@@ -167,7 +167,9 @@ const FriendsList = ({ currentUserId }: FriendsListProps) => {
                             </div>
                           </div>
                         </div>
-                        <div className="flex gap-2">
+
+
+                        <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
                           <Button
                             size="sm"
                             variant="outline"

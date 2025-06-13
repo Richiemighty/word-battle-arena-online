@@ -154,7 +154,7 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8">
           <Card className="bg-gradient-card border-green-500/40">
             <CardContent className="p-6 text-center">
               <Trophy className="h-8 w-8 text-green-500 mx-auto mb-2" />
