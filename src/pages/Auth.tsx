@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +43,6 @@ const Auth = () => {
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
             data: {
               username: formData.username,
               display_name: formData.displayName || formData.username,
@@ -56,8 +54,9 @@ const Auth = () => {
 
         toast({
           title: "Account created!",
-          description: "Please check your email to verify your account",
+          description: "Welcome to Word Battle Zones! You can now start playing.",
         });
+        navigate("/dashboard");
       }
     } catch (error: any) {
       toast({
