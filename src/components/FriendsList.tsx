@@ -148,43 +148,48 @@ const FriendsList = ({ currentUserId }: FriendsListProps) => {
                   {activeFriends.map((friendship) => {
                     const friend = getFriendData(friendship);
                     return (
-                        <div
-                          key={friendship.id}
-                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4"
-                        >
-                        <div className="flex items-center gap-3">
-                          <div className="shrink-0 w-12 h-12 bg-gradient-battle rounded-full flex items-center justify-center">
-                            <Users className="h-6 w-6 text-white" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium truncate">{friend.display_name || friend.username}</p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                              <Badge variant="secondary">{friend.rank}</Badge>
-                              <div className="flex items-center gap-1">
-                                <div className={`w-2 h-2 rounded-full ${friend.is_online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                                {friend.is_online ? 'Online' : 'Offline'}
+                      <Card key={friendship.id} className="border-border">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-gradient-battle rounded-full flex items-center justify-center">
+                                <Users className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-sm sm:text-base truncate">{friend.display_name || friend.username}</p>
+                                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
+                                  <Badge variant="secondary" className="text-xs">{friend.rank}</Badge>
+                                  <div className="flex items-center gap-1">
+                                    <div className={`w-2 h-2 rounded-full ${friend.is_online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                                    <span className="text-xs">{friend.is_online ? 'Online' : 'Offline'}</span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
+
+                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!friend.is_online}
+                                onClick={() => setSelectedFriend(friend.id)}
+                                className="w-full sm:w-auto text-xs"
+                              >
+                                <Gamepad2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                Invite to Game
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="w-full sm:w-auto text-xs"
+                              >
+                                <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                Chat
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-
-
-                        <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={!friend.is_online}
-                            onClick={() => setSelectedFriend(friend.id)}
-                          >
-                            <Gamepad2 className="h-4 w-4 mr-1" />
-                            Invite to Game
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            <MessageCircle className="h-4 w-4 mr-1" />
-                            Chat
-                          </Button>
-                        </div>
-                      </div>
+                        </CardContent>
+                      </Card>
                     );
                   })}
                 </div>
@@ -211,41 +216,43 @@ const FriendsList = ({ currentUserId }: FriendsListProps) => {
                   {pendingRequests.map((friendship) => {
                     const requester = friendship.requester;
                     return (
-                      <div
-                        key={friendship.id}
-                        className="flex items-center justify-between p-4 border border-border rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gradient-battle rounded-full flex items-center justify-center">
-                            <Users className="h-6 w-6 text-white" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{requester.display_name || requester.username}</p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Badge variant="secondary">{requester.rank}</Badge>
-                              <span>wants to be your friend</span>
+                      <Card key={friendship.id} className="border-border">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-battle rounded-full flex items-center justify-center">
+                                <Users className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-sm sm:text-base truncate">{requester.display_name || requester.username}</p>
+                                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
+                                  <Badge variant="secondary" className="text-xs">{requester.rank}</Badge>
+                                  <span className="text-xs">wants to be your friend</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                              <Button
+                                size="sm"
+                                onClick={() => handleFriendRequest(friendship.id, 'accepted')}
+                                className="bg-green-500 hover:bg-green-600 w-full sm:w-auto text-xs"
+                              >
+                                <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                Accept
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleFriendRequest(friendship.id, 'declined')}
+                                className="w-full sm:w-auto text-xs"
+                              >
+                                <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                Decline
+                              </Button>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleFriendRequest(friendship.id, 'accepted')}
-                            className="bg-green-500 hover:bg-green-600"
-                          >
-                            <Check className="h-4 w-4 mr-1" />
-                            Accept
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleFriendRequest(friendship.id, 'declined')}
-                          >
-                            <X className="h-4 w-4 mr-1" />
-                            Decline
-                          </Button>
-                        </div>
-                      </div>
+                        </CardContent>
+                      </Card>
                     );
                   })}
                 </div>

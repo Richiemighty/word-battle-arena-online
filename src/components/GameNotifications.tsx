@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,7 +43,7 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'game_invitations' },
         (payload) => {
-          if (payload.new && payload.new.receiver_id === currentUserId) {
+          if (payload.new && typeof payload.new === 'object' && 'receiver_id' in payload.new && payload.new.receiver_id === currentUserId) {
             // Fetch the updated list of invitations
             fetchInvitations();
             playSound('notification');
@@ -67,7 +68,7 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
         .from("game_invitations")
         .select(`
           *,
-          sender:sender_id (
+          sender:profiles!game_invitations_sender_id_fkey (
             username,
             display_name
           )

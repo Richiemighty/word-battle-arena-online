@@ -114,35 +114,36 @@ const FriendSearch = ({ currentUserId }: FriendSearchProps) => {
         {searchResults.length > 0 && (
           <div className="space-y-2">
             {searchResults.map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center justify-between p-3 border border-border rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-battle rounded-full flex items-center justify-center">
-                    <Users className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{user.display_name || user.username}</p>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Badge variant="secondary">{user.rank}</Badge>
-                      <span>{user.total_wins} wins</span>
-                      <div className="flex items-center gap-1">
-                        <div className={`w-2 h-2 rounded-full ${user.is_online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                        {user.is_online ? 'Online' : 'Offline'}
+              <Card key={user.id} className="border-border">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-battle rounded-full flex items-center justify-center">
+                        <Users className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm sm:text-base truncate">{user.display_name || user.username}</p>
+                        <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
+                          <Badge variant="secondary" className="text-xs">{user.rank}</Badge>
+                          <span className="text-xs">{user.total_wins} wins</span>
+                          <div className="flex items-center gap-1">
+                            <div className={`w-2 h-2 rounded-full ${user.is_online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                            <span className="text-xs">{user.is_online ? 'Online' : 'Offline'}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
+                    <Button
+                      size="sm"
+                      onClick={() => sendFriendRequest(user.id)}
+                      className="bg-gradient-battle hover:opacity-90 w-full sm:w-auto text-xs"
+                    >
+                      <UserPlus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                      Add Friend
+                    </Button>
                   </div>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => sendFriendRequest(user.id)}
-                  className="bg-gradient-battle hover:opacity-90"
-                >
-                  <UserPlus className="h-4 w-4 mr-1" />
-                  Add Friend
-                </Button>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}

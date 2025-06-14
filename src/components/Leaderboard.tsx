@@ -46,13 +46,13 @@ const Leaderboard = () => {
   const getRankIcon = (position: number) => {
     switch (position) {
       case 1:
-        return <Crown className="h-6 w-6 text-yellow-500" />;
+        return <Crown className="h-4 w-4 sm:h-6 sm:w-6 text-yellow-500" />;
       case 2:
-        return <Medal className="h-6 w-6 text-gray-400" />;
+        return <Medal className="h-4 w-4 sm:h-6 sm:w-6 text-gray-400" />;
       case 3:
-        return <Award className="h-6 w-6 text-amber-600" />;
+        return <Award className="h-4 w-4 sm:h-6 sm:w-6 text-amber-600" />;
       default:
-        return <Trophy className="h-5 w-5 text-muted-foreground" />;
+        return <Trophy className="h-3 w-3 sm:h-5 sm:w-5 text-muted-foreground" />;
     }
   };
 
@@ -70,30 +70,30 @@ const Leaderboard = () => {
     showStat: number;
     statLabel: string;
   }) => (
-    <div className="flex items-center justify-between p-4 border border-border rounded-lg">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center justify-center w-8">
+    <div className="flex items-center justify-between p-3 sm:p-4 border border-border rounded-lg">
+      <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+        <div className="flex items-center justify-center w-6 sm:w-8">
           {getRankIcon(position)}
         </div>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-battle rounded-full flex items-center justify-center text-white font-bold">
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-battle rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm">
             {(user.display_name || user.username).charAt(0).toUpperCase()}
           </div>
-          <div>
-            <p className="font-medium">{user.display_name || user.username}</p>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Badge variant="secondary">{user.rank}</Badge>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-sm sm:text-base truncate">{user.display_name || user.username}</p>
+            <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
+              <Badge variant="secondary" className="text-xs">{user.rank}</Badge>
               <div className="flex items-center gap-1">
-                <div className={`w-2 h-2 rounded-full ${user.is_online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                {user.is_online ? 'Online' : 'Offline'}
+                <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${user.is_online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                <span className="text-xs">{user.is_online ? 'Online' : 'Offline'}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
       <div className="text-right">
-        <p className="font-bold text-lg">{showStat.toLocaleString()}</p>
-        <p className="text-sm text-muted-foreground">{statLabel}</p>
+        <p className="font-bold text-sm sm:text-lg">{showStat.toLocaleString()}</p>
+        <p className="text-xs sm:text-sm text-muted-foreground">{statLabel}</p>
       </div>
     </div>
   );

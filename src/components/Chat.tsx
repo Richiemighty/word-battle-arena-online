@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, Send, Users } from "lucide-react";
+import { MessageCircle, Send, Users, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -131,115 +131,113 @@ const Chat = ({ currentUserId }: ChatProps) => {
     }
   };
 
+  const backToFriendsList = () => {
+    setSelectedFriend(null);
+    setMessages([]);
+  };
+
   if (loading) {
     return <div className="text-center py-8">Loading chat...</div>;
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[600px]">
-      {/* Friends List */}
-      <Card className="bg-gradient-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Chat with Friends
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {friends.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No friends to chat with yet.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {friends.map((friend) => (
-                <div
-                  key={friend.id}
-                  onClick={() => setSelectedFriend(friend)}
-                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                    selectedFriend?.id === friend.id 
-                      ? 'bg-primary/20 border-primary' 
-                      : 'hover:bg-muted/50 border-transparent'
-                  } border`}
-                >
-                  <div className="w-10 h-10 bg-gradient-battle rounded-full flex items-center justify-center text-white font-bold">
-                    {(friend.display_name || friend.username).charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium">{friend.display_name || friend.username}</p>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <div className={`w-2 h-2 rounded-full ${friend.is_online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                      {friend.is_online ? 'Online' : 'Offline'}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Chat Window */}
-      <div className="md:col-span-2">
-        <Card className="bg-gradient-card h-full flex flex-col">
+    <div className="h-[600px]">
+      {!selectedFriend ? (
+        // Friends List View
+        <Card className="bg-gradient-card h-full">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5" />
-              {selectedFriend 
-                ? `Chat with ${selectedFriend.display_name || selectedFriend.username}`
-                : "Select a friend to start chatting"
-              }
+              <Users className="h-5 w-5" />
+              Chat with Friends
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col">
-            {selectedFriend ? (
-              <>
-                {/* Messages */}
-                <ScrollArea className="flex-1 h-[400px] pr-4">
-                  <div className="space-y-4">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.sender.id === currentUserId ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className={`max-w-[70%] p-3 rounded-lg ${
-                          message.sender.id === currentUserId
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted'
-                        }`}>
-                          <p>{message.message}</p>
-                          <p className="text-xs opacity-70 mt-1">
-                            {new Date(message.created_at).toLocaleTimeString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    <div ref={messagesEndRef} />
-                  </div>
-                </ScrollArea>
-
-                {/* Message Input */}
-                <div className="flex gap-2 mt-4">
-                  <Input
-                    placeholder="Type your message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-                    className="bg-input border-border focus:border-primary"
-                  />
-                  <Button onClick={sendMessage} disabled={!newMessage.trim()}>
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </>
+          <CardContent>
+            {friends.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                No friends to chat with yet.
+              </p>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                Select a friend from the list to start chatting
+              <div className="space-y-2">
+                {friends.map((friend) => (
+                  <Card
+                    key={friend.id}
+                    onClick={() => setSelectedFriend(friend)}
+                    className={`cursor-pointer transition-colors hover:bg-muted/50 border-transparent hover:border-primary/20`}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-battle rounded-full flex items-center justify-center text-white font-bold">
+                          {(friend.display_name || friend.username).charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium">{friend.display_name || friend.username}</p>
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <div className={`w-2 h-2 rounded-full ${friend.is_online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                            {friend.is_online ? 'Online' : 'Offline'}
+                          </div>
+                        </div>
+                        <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
-      </div>
+      ) : (
+        // Chat Room View
+        <Card className="bg-gradient-card h-full flex flex-col">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={backToFriendsList}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <MessageCircle className="h-5 w-5" />
+              Chat with {selectedFriend.display_name || selectedFriend.username}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col">
+            {/* Messages */}
+            <ScrollArea className="flex-1 h-[400px] pr-4">
+              <div className="space-y-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.sender.id === currentUserId ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`max-w-[70%] p-3 rounded-lg ${
+                      message.sender.id === currentUserId
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted'
+                    }`}>
+                      <p>{message.message}</p>
+                      <p className="text-xs opacity-70 mt-1">
+                        {new Date(message.created_at).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+
+            {/* Message Input */}
+            <div className="flex gap-2 mt-4">
+              <Input
+                placeholder="Type your message..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+                className="bg-input border-border focus:border-primary"
+              />
+              <Button onClick={sendMessage} disabled={!newMessage.trim()}>
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
