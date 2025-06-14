@@ -9,6 +9,33 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      avatars: {
+        Row: {
+          created_at: string
+          credits_required: number
+          emoji: string
+          id: string
+          name: string
+          unlock_level: number
+        }
+        Insert: {
+          created_at?: string
+          credits_required?: number
+          emoji: string
+          id?: string
+          name: string
+          unlock_level?: number
+        }
+        Update: {
+          created_at?: string
+          credits_required?: number
+          emoji?: string
+          id?: string
+          name?: string
+          unlock_level?: number
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           created_at: string | null
@@ -287,6 +314,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_id: string | null
           avatar_url: string | null
           created_at: string | null
           display_name: string | null
@@ -294,6 +322,7 @@ export type Database = {
           is_online: boolean | null
           last_seen: string | null
           rank: string | null
+          sound_enabled: boolean
           total_credits: number | null
           total_draws: number | null
           total_losses: number | null
@@ -301,6 +330,7 @@ export type Database = {
           username: string
         }
         Insert: {
+          avatar_id?: string | null
           avatar_url?: string | null
           created_at?: string | null
           display_name?: string | null
@@ -308,6 +338,7 @@ export type Database = {
           is_online?: boolean | null
           last_seen?: string | null
           rank?: string | null
+          sound_enabled?: boolean
           total_credits?: number | null
           total_draws?: number | null
           total_losses?: number | null
@@ -315,6 +346,7 @@ export type Database = {
           username: string
         }
         Update: {
+          avatar_id?: string | null
           avatar_url?: string | null
           created_at?: string | null
           display_name?: string | null
@@ -322,19 +354,32 @@ export type Database = {
           is_online?: boolean | null
           last_seen?: string | null
           rank?: string | null
+          sound_enabled?: boolean
           total_credits?: number | null
           total_draws?: number | null
           total_losses?: number | null
           total_wins?: number | null
           username?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_avatar_id_fkey"
+            columns: ["avatar_id"]
+            isOneToOne: false
+            referencedRelation: "avatars"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      get_user_unlock_level: {
+        Args: { user_credits: number }
+        Returns: number
+      }
       update_user_online_status: {
         Args: { user_id: string; is_online: boolean }
         Returns: undefined

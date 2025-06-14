@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +14,8 @@ import {
   Crown,
   Target,
   Coins,
-  User
+  User,
+  Settings
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -26,6 +26,8 @@ import Leaderboard from "@/components/Leaderboard";
 import Chat from "@/components/Chat";
 import GameNotifications from "@/components/GameNotifications";
 import PracticeGameRoom from "@/components/PracticeGameRoom";
+import ProfileEditor from "@/components/ProfileEditor";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 
 interface Profile {
   id: string;
@@ -37,6 +39,16 @@ interface Profile {
   total_credits: number;
   rank: string;
   is_online: boolean;
+  avatar_id: string | null;
+  sound_enabled: boolean;
+}
+
+interface Avatar {
+  id: string;
+  name: string;
+  emoji: string;
+  unlock_level: number;
+  credits_required: number;
 }
 
 const Dashboard = () => {
@@ -44,7 +56,10 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [practiceMode, setPracticeMode] = useState(false);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<{id: string, name: string} | null>(null);
+  const [userAvatar, setUserAvatar] = useState<Avatar | null>(null);
+  const { playSound } = useSoundEffects();
   const navigate = useNavigate();
 
   const practiceCategories = [
@@ -69,10 +84,19 @@ const Dashboard = () => {
         return;
       }
 
-      // Fetch user profile
+      // Fetch user profile with avatar
       const { data: profileData, error } = await supabase
         .from("profiles")
-        .select("*")
+        .select(`
+          *,
+          avatars (
+            id,
+            name,
+            emoji,
+            unlock_level,
+            credits_required
+          )
+        `)
         .eq("id", user.id)
         .single();
 
@@ -85,6 +109,7 @@ const Dashboard = () => {
         });
       } else {
         setProfile(profileData);
+        setUserAvatar(profileData.avatars);
         // Update online status
         await supabase.rpc("update_user_online_status", {
           user_id: user.id,
@@ -100,6 +125,7 @@ const Dashboard = () => {
 
   const handleSignOut = async () => {
     try {
+      await playSound('click');
       if (profile) {
         await supabase.rpc("update_user_online_status", {
           user_id: profile.id,
@@ -118,11 +144,13 @@ const Dashboard = () => {
     }
   };
 
-  const startPracticeGame = () => {
+  const startPracticeGame = async () => {
+    await playSound('click');
     setShowCategoryDialog(true);
   };
 
-  const handlePracticeCategory = (categoryId: string) => {
+  const handlePracticeCategory = async (categoryId: string) => {
+    await playSound('click');
     const category = practiceCategories.find(c => c.id === categoryId);
     if (category) {
       setSelectedCategory(category);
@@ -131,12 +159,17 @@ const Dashboard = () => {
     }
   };
 
-  const findRandomMatch = () => {
+  const findRandomMatch = async () => {
+    await playSound('click');
     toast({
       title: "Finding Match",
       description: "Looking for online players...",
     });
     // TODO: Implement random matchmaking
+  };
+
+  const handleProfileUpdate = (updatedProfile: Profile) => {
+    setProfile(updatedProfile);
   };
 
   if (practiceMode && selectedCategory) {
@@ -176,8 +209,15 @@ const Dashboard = () => {
         {/* Header - Mobile Responsive */}
         <div className="flex flex-col sm:flex-row items-center justify-between mb-6 sm:mb-8 gap-4">
           <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-battle rounded-full flex items-center justify-center">
-              <User className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+            <div 
+              className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-battle rounded-full flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+              onClick={() => setShowProfileEditor(true)}
+            >
+              {userAvatar ? (
+                <span className="text-2xl sm:text-3xl">{userAvatar.emoji}</span>
+              ) : (
+                <User className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+              )}
             </div>
             <div className="text-center sm:text-left">
               <h1 className="text-xl sm:text-3xl font-bold gradient-text">
@@ -192,10 +232,21 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          <Button variant="outline" onClick={handleSignOut} className="text-sm">
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowProfileEditor(true)}
+              className="text-xs sm:text-sm"
+            >
+              <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Profile</span>
+            </Button>
+            <Button variant="outline" onClick={handleSignOut} className="text-xs sm:text-sm">
+              <LogOut className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </Button>
+          </div>
         </div>
 
         {/* Game Notifications */}
@@ -296,6 +347,16 @@ const Dashboard = () => {
             <Chat currentUserId={profile.id} />
           </TabsContent>
         </Tabs>
+
+        {/* Profile Editor Dialog */}
+        {profile && (
+          <ProfileEditor
+            isOpen={showProfileEditor}
+            onClose={() => setShowProfileEditor(false)}
+            profile={profile}
+            onProfileUpdate={handleProfileUpdate}
+          />
+        )}
 
         {/* Practice Category Selection Dialog */}
         <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
