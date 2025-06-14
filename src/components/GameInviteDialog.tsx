@@ -26,7 +26,7 @@ const categories = [
   "History"
 ];
 
-const GameInviteDialog = ({ friendId, currentUserId, isOpen, onClose }: GameInvite DialogProps) => {
+const GameInviteDialog = ({ friendId, currentUserId, isOpen, onClose }: GameInviteDialogProps) => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
