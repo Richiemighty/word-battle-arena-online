@@ -22,6 +22,7 @@ import FriendSearch from "@/components/FriendSearch";
 import FriendsList from "@/components/FriendsList";
 import Leaderboard from "@/components/Leaderboard";
 import Chat from "@/components/Chat";
+import GameNotifications from "@/components/GameNotifications";
 
 interface Profile {
   id: string;
@@ -106,6 +107,14 @@ const Dashboard = () => {
     navigate("/");
   };
 
+  const findRandomMatch = () => {
+    toast({
+      title: "Finding Match",
+      description: "Looking for online players...",
+    });
+    // TODO: Implement random matchmaking
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 flex items-center justify-center">
@@ -153,6 +162,9 @@ const Dashboard = () => {
           </Button>
         </div>
 
+        {/* Game Notifications */}
+        <GameNotifications currentUserId={profile.id} />
+
         {/* Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8">
           <Card className="bg-gradient-card border-green-500/40">
@@ -175,7 +187,7 @@ const Dashboard = () => {
             <CardContent className="p-6 text-center">
               <Crown className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
               <div className="text-2xl font-bold text-foreground">{profile.total_draws}</div>
-              <p className="text-sm text-muted-foreground">Draws</p>
+              <p className="text-sm text-muted-foregrade">Draws</p>
             </CardContent>
           </Card>
 
@@ -227,8 +239,8 @@ const Dashboard = () => {
                   <p className="text-muted-foreground mb-4">
                     Challenge your friends or find random opponents online!
                   </p>
-                  <Button variant="outline" className="w-full" disabled>
-                    Coming Soon
+                  <Button onClick={findRandomMatch} className="w-full bg-gradient-battle hover:opacity-90">
+                    Find Random Match
                   </Button>
                 </CardContent>
               </Card>

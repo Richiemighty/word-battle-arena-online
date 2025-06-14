@@ -17,7 +17,7 @@ interface GameInviteDialogProps {
 
 const categories = [
   "Animals",
-  "Countries",
+  "Countries", 
   "Food",
   "Movies",
   "Sports",
@@ -26,7 +26,7 @@ const categories = [
   "History"
 ];
 
-const GameInviteDialog = ({ friendId, currentUserId, isOpen, onClose }: GameInviteDialogProps) => {
+const GameInviteDialog = ({ friendId, currentUserId, isOpen, onClose }: GameInvite DialogProps) => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -51,21 +51,35 @@ const GameInviteDialog = ({ friendId, currentUserId, isOpen, onClose }: GameInvi
           player2_id: friendId,
           category: selectedCategory,
           status: "waiting",
-          current_turn: currentUserId
+          current_turn: friendId, // Receiver gets first turn advantage
+          time_limit: 120,
+          turn_time_limit: 30,
+          max_credits: 1000
         })
         .select()
         .single();
 
       if (gameError) throw gameError;
 
-      // For now, directly navigate both players to the game
-      // In a real implementation, you'd send a notification to the friend
+      // Create game invitation
+      const { error: inviteError } = await supabase
+        .from("game_invitations")
+        .insert({
+          sender_id: currentUserId,
+          receiver_id: friendId,
+          game_session_id: gameData.id,
+          category: selectedCategory,
+          status: 'pending'
+        });
+
+      if (inviteError) throw inviteError;
+
       toast({
         title: "Game invitation sent!",
         description: `Your friend has been invited to play ${selectedCategory}`,
       });
 
-      // Navigate to the game
+      // Navigate to game room (waiting)
       navigate(`/game/${gameData.id}`);
       onClose();
     } catch (error) {

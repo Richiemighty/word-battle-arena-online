@@ -93,6 +93,61 @@ export type Database = {
           },
         ]
       }
+      game_invitations: {
+        Row: {
+          category: string
+          created_at: string | null
+          expires_at: string | null
+          game_session_id: string | null
+          id: string
+          receiver_id: string
+          sender_id: string
+          status: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          expires_at?: string | null
+          game_session_id?: string | null
+          id?: string
+          receiver_id: string
+          sender_id: string
+          status?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          expires_at?: string | null
+          game_session_id?: string | null
+          id?: string
+          receiver_id?: string
+          sender_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_invitations_game_session_id_fkey"
+            columns: ["game_session_id"]
+            isOneToOne: false
+            referencedRelation: "game_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_invitations_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_invitations_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_moves: {
         Row: {
           created_at: string | null
@@ -146,12 +201,17 @@ export type Database = {
           category: string
           created_at: string | null
           current_turn: string | null
+          ended_at: string | null
           id: string
+          max_credits: number | null
           player1_id: string | null
           player1_score: number | null
           player2_id: string | null
           player2_score: number | null
+          started_at: string | null
           status: string | null
+          time_limit: number | null
+          turn_time_limit: number | null
           updated_at: string | null
           winner_id: string | null
           words_used: Json | null
@@ -160,12 +220,17 @@ export type Database = {
           category: string
           created_at?: string | null
           current_turn?: string | null
+          ended_at?: string | null
           id?: string
+          max_credits?: number | null
           player1_id?: string | null
           player1_score?: number | null
           player2_id?: string | null
           player2_score?: number | null
+          started_at?: string | null
           status?: string | null
+          time_limit?: number | null
+          turn_time_limit?: number | null
           updated_at?: string | null
           winner_id?: string | null
           words_used?: Json | null
@@ -174,12 +239,17 @@ export type Database = {
           category?: string
           created_at?: string | null
           current_turn?: string | null
+          ended_at?: string | null
           id?: string
+          max_credits?: number | null
           player1_id?: string | null
           player1_score?: number | null
           player2_id?: string | null
           player2_score?: number | null
+          started_at?: string | null
           status?: string | null
+          time_limit?: number | null
+          turn_time_limit?: number | null
           updated_at?: string | null
           winner_id?: string | null
           words_used?: Json | null
@@ -267,6 +337,15 @@ export type Database = {
     Functions: {
       update_user_online_status: {
         Args: { user_id: string; is_online: boolean }
+        Returns: undefined
+      }
+      update_user_stats_after_game: {
+        Args: {
+          user_id: string
+          credits_earned: number
+          is_winner: boolean
+          is_draw: boolean
+        }
         Returns: undefined
       }
     }
