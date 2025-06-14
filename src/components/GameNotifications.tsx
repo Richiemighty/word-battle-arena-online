@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Gamepad2, Check, X } from "lucide-react";
+import { Bell, Check, X, Users, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -11,10 +11,12 @@ import { useNavigate } from "react-router-dom";
 interface GameInvitation {
   id: string;
   sender_id: string;
+  receiver_id: string;
+  game_session_id: string;
   category: string;
   status: string;
   created_at: string;
-  game_session_id: string;
+  expires_at: string;
   sender: {
     id: string;
     username: string;
@@ -33,8 +35,8 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
 
   useEffect(() => {
     fetchInvitations();
-    
-    // Listen for real-time updates
+
+    // Listen for real-time invitation updates
     const channel = supabase
       .channel('game-invitations')
       .on(
@@ -46,7 +48,7 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
           filter: `receiver_id=eq.${currentUserId}`
         },
         (payload) => {
-          console.log('New game invitation received:', payload);
+          console.log('New invitation received:', payload);
           fetchInvitations();
         }
       )
@@ -62,12 +64,7 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
       const { data, error } = await supabase
         .from("game_invitations")
         .select(`
-          id,
-          sender_id,
-          category,
-          status,
-          created_at,
-          game_session_id,
+          *,
           sender:profiles!game_invitations_sender_id_fkey(id, username, display_name)
         `)
         .eq("receiver_id", currentUserId)
@@ -81,43 +78,56 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
     }
   };
 
-  const handleInvitation = async (invitationId: string, action: 'accepted' | 'declined', gameSessionId?: string) => {
+  const handleInvitationResponse = async (invitationId: string, gameSessionId: string, response: 'accepted' | 'declined') => {
     setLoading(true);
     try {
-      const { error } = await supabase
+      // Update invitation status
+      const { error: inviteError } = await supabase
         .from("game_invitations")
-        .update({ status: action })
+        .update({ status: response })
         .eq("id", invitationId);
 
-      if (error) throw error;
+      if (inviteError) throw inviteError;
 
-      if (action === 'accepted' && gameSessionId) {
-        // Update game session status
-        await supabase
+      if (response === 'accepted') {
+        // Update game session to active
+        const { error: gameError } = await supabase
           .from("game_sessions")
-          .update({ status: 'active', started_at: new Date().toISOString() })
+          .update({ 
+            status: 'active',
+            started_at: new Date().toISOString()
+          })
           .eq("id", gameSessionId);
+
+        if (gameError) throw gameError;
 
         toast({
           title: "Game invitation accepted!",
-          description: "Joining game...",
+          description: "Joining the game room...",
         });
 
-        // Navigate to game
+        // Navigate to game room
         navigate(`/game/${gameSessionId}`);
       } else {
+        // Update game session to cancelled
+        await supabase
+          .from("game_sessions")
+          .update({ status: 'cancelled' })
+          .eq("id", gameSessionId);
+
         toast({
-          title: action === 'accepted' ? "Invitation accepted!" : "Invitation declined",
-          description: action === 'accepted' ? "Joining game..." : "Invitation declined",
+          title: "Game invitation declined",
+          description: "The invitation has been declined",
         });
       }
 
+      // Refresh invitations
       fetchInvitations();
     } catch (error) {
-      console.error("Error handling invitation:", error);
+      console.error("Error responding to invitation:", error);
       toast({
         title: "Error",
-        description: "Failed to handle invitation",
+        description: "Failed to respond to invitation",
         variant: "destructive",
       });
     } finally {
@@ -130,59 +140,69 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
   }
 
   return (
-    <Card className="bg-gradient-card border-primary/40 mb-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Bell className="h-5 w-5" />
-          Game Invitations ({invitations.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {invitations.map((invitation) => (
-            <div
-              key={invitation.id}
-              className="flex items-center justify-between p-4 border border-border rounded-lg"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-battle rounded-full flex items-center justify-center">
-                  <Gamepad2 className="h-6 w-6 text-white" />
+    <div className="mb-4 sm:mb-6">
+      <div className="flex items-center gap-2 mb-3 sm:mb-4">
+        <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+        <h2 className="text-sm sm:text-lg font-semibold">Game Invitations</h2>
+        <Badge variant="secondary" className="text-xs">
+          {invitations.length}
+        </Badge>
+      </div>
+
+      <div className="space-y-2 sm:space-y-3">
+        {invitations.map((invitation) => (
+          <Card key={invitation.id} className="bg-gradient-card border-primary/40">
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm sm:text-base">
+                  <Users className="h-4 w-4 text-primary" />
+                  <span className="font-medium">
+                    {invitation.sender.display_name || invitation.sender.username}
+                  </span>
+                  <span className="text-muted-foreground text-xs sm:text-sm">
+                    invited you to play
+                  </span>
                 </div>
-                <div>
-                  <p className="font-medium">
-                    {invitation.sender.display_name || invitation.sender.username} invited you to play
-                  </p>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Badge variant="secondary">{invitation.category}</Badge>
-                    <span>• {new Date(invitation.created_at).toLocaleTimeString()}</span>
-                  </div>
+                <Badge variant="outline" className="text-xs w-fit">
+                  {invitation.category}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                  <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span>
+                    Expires in {Math.max(0, Math.floor((new Date(invitation.expires_at).getTime() - new Date().getTime()) / (1000 * 60)))} minutes
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleInvitationResponse(invitation.id, invitation.game_session_id, 'declined')}
+                    disabled={loading}
+                    className="flex-1 sm:flex-none text-xs sm:text-sm"
+                  >
+                    <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    Decline
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleInvitationResponse(invitation.id, invitation.game_session_id, 'accepted')}
+                    disabled={loading}
+                    className="flex-1 sm:flex-none bg-gradient-battle hover:opacity-90 text-xs sm:text-sm"
+                  >
+                    <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    Accept
+                  </Button>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => handleInvitation(invitation.id, 'accepted', invitation.game_session_id)}
-                  disabled={loading}
-                  className="bg-green-500 hover:bg-green-600"
-                >
-                  <Check className="h-4 w-4 mr-1" />
-                  Accept
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => handleInvitation(invitation.id, 'declined')}
-                  disabled={loading}
-                >
-                  <X className="h-4 w-4 mr-1" />
-                  Decline
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
   );
 };
 

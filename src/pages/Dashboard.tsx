@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Trophy, 
   Users, 
@@ -23,6 +25,7 @@ import FriendsList from "@/components/FriendsList";
 import Leaderboard from "@/components/Leaderboard";
 import Chat from "@/components/Chat";
 import GameNotifications from "@/components/GameNotifications";
+import PracticeGameRoom from "@/components/PracticeGameRoom";
 
 interface Profile {
   id: string;
@@ -39,7 +42,19 @@ interface Profile {
 const Dashboard = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [practiceMode, setPracticeMode] = useState(false);
+  const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<{id: string, name: string} | null>(null);
   const navigate = useNavigate();
+
+  const practiceCategories = [
+    { id: "animals", name: "Animals" },
+    { id: "fruits", name: "Fruits" },
+    { id: "countries", name: "Countries" },
+    { id: "colors", name: "Colors" },
+    { id: "sports", name: "Sports" },
+    { id: "food", name: "Food" }
+  ];
 
   useEffect(() => {
     checkUser();
@@ -104,7 +119,16 @@ const Dashboard = () => {
   };
 
   const startPracticeGame = () => {
-    navigate("/");
+    setShowCategoryDialog(true);
+  };
+
+  const handlePracticeCategory = (categoryId: string) => {
+    const category = practiceCategories.find(c => c.id === categoryId);
+    if (category) {
+      setSelectedCategory(category);
+      setPracticeMode(true);
+      setShowCategoryDialog(false);
+    }
   };
 
   const findRandomMatch = () => {
@@ -114,6 +138,18 @@ const Dashboard = () => {
     });
     // TODO: Implement random matchmaking
   };
+
+  if (practiceMode && selectedCategory) {
+    return (
+      <PracticeGameRoom 
+        category={selectedCategory}
+        onBack={() => {
+          setPracticeMode(false);
+          setSelectedCategory(null);
+        }}
+      />
+    );
+  }
 
   if (loading) {
     return (
@@ -135,28 +171,28 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 p-3 sm:p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gradient-battle rounded-full flex items-center justify-center">
-              <User className="h-8 w-8 text-white" />
+        {/* Header - Mobile Responsive */}
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-6 sm:mb-8 gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-battle rounded-full flex items-center justify-center">
+              <User className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold gradient-text">
+            <div className="text-center sm:text-left">
+              <h1 className="text-xl sm:text-3xl font-bold gradient-text">
                 Welcome, {profile.display_name || profile.username}!
               </h1>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="secondary">{profile.rank}</Badge>
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <div className="flex items-center justify-center sm:justify-start gap-2 mt-1">
+                <Badge variant="secondary" className="text-xs sm:text-sm">{profile.rank}</Badge>
+                <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   Online
                 </div>
               </div>
             </div>
           </div>
-          <Button variant="outline" onClick={handleSignOut}>
+          <Button variant="outline" onClick={handleSignOut} className="text-sm">
             <LogOut className="h-4 w-4 mr-2" />
             Sign Out
           </Button>
@@ -165,64 +201,64 @@ const Dashboard = () => {
         {/* Game Notifications */}
         <GameNotifications currentUserId={profile.id} />
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8">
+        {/* Stats Cards - Mobile Responsive */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
           <Card className="bg-gradient-card border-green-500/40">
-            <CardContent className="p-6 text-center">
-              <Trophy className="h-8 w-8 text-green-500 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-foreground">{profile.total_wins}</div>
-              <p className="text-sm text-muted-foreground">Wins</p>
+            <CardContent className="p-3 sm:p-6 text-center">
+              <Trophy className="h-6 sm:h-8 w-6 sm:w-8 text-green-500 mx-auto mb-1 sm:mb-2" />
+              <div className="text-lg sm:text-2xl font-bold text-foreground">{profile.total_wins}</div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Wins</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-card border-red-500/40">
-            <CardContent className="p-6 text-center">
-              <Target className="h-8 w-8 text-red-500 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-foreground">{profile.total_losses}</div>
-              <p className="text-sm text-muted-foreground">Losses</p>
+            <CardContent className="p-3 sm:p-6 text-center">
+              <Target className="h-6 sm:h-8 w-6 sm:w-8 text-red-500 mx-auto mb-1 sm:mb-2" />
+              <div className="text-lg sm:text-2xl font-bold text-foreground">{profile.total_losses}</div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Losses</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-card border-yellow-500/40">
-            <CardContent className="p-6 text-center">
-              <Crown className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-foreground">{profile.total_draws}</div>
-              <p className="text-sm text-muted-foregrade">Draws</p>
+            <CardContent className="p-3 sm:p-6 text-center">
+              <Crown className="h-6 sm:h-8 w-6 sm:w-8 text-yellow-500 mx-auto mb-1 sm:mb-2" />
+              <div className="text-lg sm:text-2xl font-bold text-foreground">{profile.total_draws}</div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Draws</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-card border-blue-500/40">
-            <CardContent className="p-6 text-center">
-              <Coins className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-foreground">{profile.total_credits}</div>
-              <p className="text-sm text-muted-foreground">Credits</p>
+            <CardContent className="p-3 sm:p-6 text-center">
+              <Coins className="h-6 sm:h-8 w-6 sm:w-8 text-blue-500 mx-auto mb-1 sm:mb-2" />
+              <div className="text-lg sm:text-2xl font-bold text-foreground">{profile.total_credits}</div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Credits</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Content */}
+        {/* Main Content - Mobile Responsive Tabs */}
         <Tabs defaultValue="play" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="play">Play</TabsTrigger>
-            <TabsTrigger value="friends">Friends</TabsTrigger>
-            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-            <TabsTrigger value="chat">Chat</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 mb-4 sm:mb-6">
+            <TabsTrigger value="play" className="text-xs sm:text-sm">Play</TabsTrigger>
+            <TabsTrigger value="friends" className="text-xs sm:text-sm">Friends</TabsTrigger>
+            <TabsTrigger value="leaderboard" className="text-xs sm:text-sm">Board</TabsTrigger>
+            <TabsTrigger value="chat" className="text-xs sm:text-sm">Chat</TabsTrigger>
           </TabsList>
 
           <TabsContent value="play" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <Card className="bg-gradient-card border-primary/40">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Gamepad2 className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                    <Gamepad2 className="h-4 sm:h-5 w-4 sm:w-5" />
                     Practice Mode
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-4">
+                  <p className="text-muted-foreground mb-4 text-xs sm:text-sm">
                     Sharpen your skills against the computer. Perfect for warming up!
                   </p>
-                  <Button onClick={startPracticeGame} className="w-full bg-gradient-battle hover:opacity-90">
+                  <Button onClick={startPracticeGame} className="w-full bg-gradient-battle hover:opacity-90 text-sm">
                     Start Practice Game
                   </Button>
                 </CardContent>
@@ -230,16 +266,16 @@ const Dashboard = () => {
 
               <Card className="bg-gradient-card border-accent/40">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                    <Users className="h-4 sm:h-5 w-4 sm:w-5" />
                     Multiplayer
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-4">
+                  <p className="text-muted-foreground mb-4 text-xs sm:text-sm">
                     Challenge your friends or find random opponents online!
                   </p>
-                  <Button onClick={findRandomMatch} className="w-full bg-gradient-battle hover:opacity-90">
+                  <Button onClick={findRandomMatch} className="w-full bg-gradient-battle hover:opacity-90 text-sm">
                     Find Random Match
                   </Button>
                 </CardContent>
@@ -247,7 +283,7 @@ const Dashboard = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="friends" className="mt-6 space-y-6">
+          <TabsContent value="friends" className="mt-6 space-y-4 sm:space-y-6">
             <FriendSearch currentUserId={profile.id} />
             <FriendsList currentUserId={profile.id} />
           </TabsContent>
@@ -260,6 +296,36 @@ const Dashboard = () => {
             <Chat currentUserId={profile.id} />
           </TabsContent>
         </Tabs>
+
+        {/* Practice Category Selection Dialog */}
+        <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
+          <DialogContent className="sm:max-w-md mx-4">
+            <DialogHeader>
+              <DialogTitle className="text-sm sm:text-base">Choose Practice Category</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Select onValueChange={handlePracticeCategory}>
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="Select a category to practice" />
+                </SelectTrigger>
+                <SelectContent>
+                  {practiceCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id} className="text-sm">
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowCategoryDialog(false)}
+                className="w-full text-sm"
+              >
+                Cancel
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

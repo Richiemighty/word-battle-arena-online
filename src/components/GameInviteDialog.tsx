@@ -23,7 +23,9 @@ const categories = [
   "Sports",
   "Technology",
   "Nature",
-  "History"
+  "History",
+  "Colors",
+  "Fruits"
 ];
 
 const GameInviteDialog = ({ friendId, currentUserId, isOpen, onClose }: GameInviteDialogProps) => {
@@ -96,10 +98,10 @@ const GameInviteDialog = ({ friendId, currentUserId, isOpen, onClose }: GameInvi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md mx-4">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Gamepad2 className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-sm sm:text-base">
+            <Gamepad2 className="h-4 w-4 sm:h-5 sm:w-5" />
             Send Game Invitation
           </DialogTitle>
         </DialogHeader>
@@ -109,12 +111,12 @@ const GameInviteDialog = ({ friendId, currentUserId, isOpen, onClose }: GameInvi
               Choose Game Category
             </label>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger>
+              <SelectTrigger className="text-sm">
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
+                  <SelectItem key={category} value={category} className="text-sm">
                     {category}
                   </SelectItem>
                 ))}
@@ -122,14 +124,14 @@ const GameInviteDialog = ({ friendId, currentUserId, isOpen, onClose }: GameInvi
             </Select>
           </div>
           
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={onClose}>
+          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={onClose} className="text-sm">
               Cancel
             </Button>
             <Button 
               onClick={sendGameInvitation}
               disabled={loading || !selectedCategory}
-              className="bg-gradient-battle hover:opacity-90"
+              className="bg-gradient-battle hover:opacity-90 text-sm"
             >
               {loading ? "Sending..." : "Send Invitation"}
             </Button>

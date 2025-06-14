@@ -1,10 +1,9 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Clock, Trophy, Users, Crown } from "lucide-react";
+import { ArrowLeft, Clock, Trophy, Users, Crown, RotateCcw, Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -23,6 +22,7 @@ interface GameSession {
   time_limit: number;
   turn_time_limit: number;
   max_credits: number;
+  winner_id?: string;
   player1: {
     id: string;
     username: string;
@@ -48,6 +48,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
   const [countdown, setCountdown] = useState(5);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameActive, setGameActive] = useState(false);
+  const [gameEnded, setGameEnded] = useState(false);
   const [loading, setLoading] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -60,7 +61,9 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
     "Movies": ['avatar', 'titanic', 'inception', 'matrix', 'gladiator', 'jaws', 'rocky', 'alien', 'batman', 'superman'],
     "Technology": ['computer', 'smartphone', 'internet', 'software', 'hardware', 'network', 'database', 'programming', 'algorithm', 'artificial'],
     "Nature": ['mountain', 'ocean', 'forest', 'desert', 'river', 'lake', 'volcano', 'beach', 'canyon', 'valley'],
-    "History": ['egypt', 'rome', 'greece', 'medieval', 'renaissance', 'revolution', 'empire', 'kingdom', 'dynasty', 'civilization']
+    "History": ['egypt', 'rome', 'greece', 'medieval', 'renaissance', 'revolution', 'empire', 'kingdom', 'dynasty', 'civilization'],
+    "Colors": ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'brown', 'black', 'white'],
+    "Fruits": ['apple', 'banana', 'orange', 'grape', 'strawberry', 'mango', 'pineapple', 'watermelon', 'peach', 'cherry']
   };
 
   useEffect(() => {
@@ -167,7 +170,24 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
         .single();
 
       if (error) throw error;
-      setGameSession(data);
+      
+      // Handle words_used properly - it might be a JSON array or string array
+      const processedData = {
+        ...data,
+        words_used: Array.isArray(data.words_used) 
+          ? data.words_used 
+          : data.words_used 
+            ? JSON.parse(data.words_used as string) 
+            : []
+      };
+      
+      setGameSession(processedData);
+      
+      // Check if game has ended
+      if (data.status === 'completed') {
+        setGameEnded(true);
+        setGameActive(false);
+      }
     } catch (error) {
       console.error("Error fetching game session:", error);
       toast({
@@ -338,6 +358,14 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
     }
   };
 
+  const playAgain = () => {
+    navigate("/dashboard");
+  };
+
+  const chooseNewCategory = () => {
+    navigate("/dashboard");
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       submitWord();
@@ -419,117 +447,175 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
     );
   }
 
+  // Game ended - show options
+  if (gameEnded || gameSession?.status === 'completed') {
+    const isWinner = gameSession?.winner_id === currentUserId;
+    const isDraw = !gameSession?.winner_id;
+    const opponent = gameSession?.player1_id === currentUserId ? gameSession?.player2 : gameSession?.player1;
+    
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 flex items-center justify-center p-4">
+        <Card className="bg-gradient-card border-primary/40 max-w-md mx-auto w-full">
+          <CardHeader className="text-center">
+            <CardTitle className="text-3xl font-bold gradient-text mb-4">
+              {isDraw ? "It's a Draw!" : isWinner ? "You Won! 🏆" : "Game Over"}
+            </CardTitle>
+            <div className="space-y-2">
+              <p className="text-lg">Final Scores:</p>
+              <div className="flex justify-between items-center bg-secondary/20 p-3 rounded-lg">
+                <span>You: {gameSession.player1_id === currentUserId ? gameSession.player1_score : gameSession.player2_score}</span>
+                <span>{opponent?.display_name || opponent?.username}: {gameSession.player1_id === currentUserId ? gameSession.player2_score : gameSession.player1_score}</span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button 
+                onClick={playAgain}
+                className="flex-1 bg-gradient-battle hover:opacity-90"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Play Again
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={chooseNewCategory}
+                className="flex-1"
+              >
+                <Home className="h-4 w-4 mr-2" />
+                New Category
+              </Button>
+            </div>
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate("/dashboard")}
+              className="w-full"
+            >
+              Return to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 p-3 sm:p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
           <Button 
             variant="ghost" 
-            size="lg" 
+            size="sm"
             onClick={() => navigate("/dashboard")}
             className="text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            Back
+            <ArrowLeft className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Back</span>
           </Button>
-          <h1 className="text-2xl md:text-3xl font-bold gradient-text">
-            {gameSession.category} Battle
+          <h1 className="text-lg sm:text-2xl md:text-3xl font-bold gradient-text text-center">
+            {gameSession?.category} Battle
           </h1>
-          <div className="w-24" />
+          <div className="w-16 sm:w-24" />
         </div>
 
-        {/* Game Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {/* Game Stats - Mobile Responsive */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
           <Card className="bg-gradient-card border-accent/40">
-            <CardContent className="p-4 text-center">
-              <Clock className="h-6 w-6 text-accent mx-auto mb-2" />
-              <div className="text-xl font-bold text-foreground">{Math.floor(gameTimeLeft / 60)}:{(gameTimeLeft % 60).toString().padStart(2, '0')}</div>
-              <p className="text-sm text-muted-foreground">Game Time</p>
+            <CardContent className="p-2 sm:p-4 text-center">
+              <Clock className="h-4 sm:h-6 w-4 sm:w-6 text-accent mx-auto mb-1 sm:mb-2" />
+              <div className="text-sm sm:text-xl font-bold text-foreground">
+                {Math.floor(gameTimeLeft / 60)}:{(gameTimeLeft % 60).toString().padStart(2, '0')}
+              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Game Time</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-card border-primary/40">
-            <CardContent className="p-4 text-center">
-              <Clock className="h-6 w-6 text-primary mx-auto mb-2" />
-              <div className="text-xl font-bold text-foreground">{timeLeft}s</div>
-              <p className="text-sm text-muted-foreground">Turn Time</p>
+            <CardContent className="p-2 sm:p-4 text-center">
+              <Clock className="h-4 sm:h-6 w-4 sm:w-6 text-primary mx-auto mb-1 sm:mb-2" />
+              <div className="text-sm sm:text-xl font-bold text-foreground">{timeLeft}s</div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Turn Time</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-card border-green-500/40">
-            <CardContent className="p-4 text-center">
-              <Trophy className="h-6 w-6 text-green-500 mx-auto mb-2" />
-              <div className="text-xl font-bold text-foreground">{myScore}</div>
-              <p className="text-sm text-muted-foreground">Your Score</p>
+            <CardContent className="p-2 sm:p-4 text-center">
+              <Trophy className="h-4 sm:h-6 w-4 sm:w-6 text-green-500 mx-auto mb-1 sm:mb-2" />
+              <div className="text-sm sm:text-xl font-bold text-foreground">
+                {gameSession?.player1_id === currentUserId ? gameSession?.player1_score : gameSession?.player2_score}
+              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Your Score</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-card border-red-500/40">
-            <CardContent className="p-4 text-center">
-              <Users className="h-6 w-6 text-red-500 mx-auto mb-2" />
-              <div className="text-xl font-bold text-foreground">{opponentScore}</div>
-              <p className="text-sm text-muted-foreground">Opponent</p>
+            <CardContent className="p-2 sm:p-4 text-center">
+              <Users className="h-4 sm:h-6 w-4 sm:w-6 text-red-500 mx-auto mb-1 sm:mb-2" />
+              <div className="text-sm sm:text-xl font-bold text-foreground">
+                {gameSession?.player1_id === currentUserId ? gameSession?.player2_score : gameSession?.player1_score}
+              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Opponent</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Current Turn */}
-        <Card className="bg-gradient-card border-primary/40 mb-6">
-          <CardHeader>
-            <CardTitle className="text-center flex items-center justify-center gap-2">
-              {isMyTurn ? (
+        {/* Current Turn - Mobile Responsive */}
+        <Card className="bg-gradient-card border-primary/40 mb-4 sm:mb-6">
+          <CardHeader className="pb-2 sm:pb-4">
+            <CardTitle className="text-center flex items-center justify-center gap-2 text-sm sm:text-base">
+              {gameSession?.current_turn === currentUserId ? (
                 <>
-                  <Crown className="h-5 w-5 text-yellow-500" />
-                  Your Turn - Name a {gameSession.category.toLowerCase().slice(0, -1)}!
+                  <Crown className="h-4 sm:h-5 w-4 sm:w-5 text-yellow-500" />
+                  <span className="text-xs sm:text-base">Your Turn - Name a {gameSession?.category.toLowerCase().slice(0, -1)}!</span>
                 </>
               ) : (
                 <>
-                  <Users className="h-5 w-5 text-muted-foreground" />
-                  Waiting for {opponent.display_name || opponent.username}...
+                  <Users className="h-4 sm:h-5 w-4 sm:w-5 text-muted-foreground" />
+                  <span className="text-xs sm:text-base">Waiting for opponent...</span>
                 </>
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-4">
+          <CardContent className="space-y-3 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
               <Input
                 ref={inputRef}
                 value={currentWord}
                 onChange={(e) => setCurrentWord(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder={`Enter a ${gameSession.category.toLowerCase().slice(0, -1)}...`}
-                className="text-lg py-6 bg-input border-border focus:border-primary"
-                disabled={!gameActive || !isMyTurn}
+                onKeyPress={(e) => e.key === 'Enter' && gameSession?.current_turn === currentUserId && submitWord()}
+                placeholder={`Enter a ${gameSession?.category.toLowerCase().slice(0, -1)}...`}
+                className="text-sm sm:text-lg py-3 sm:py-6 bg-input border-border focus:border-primary"
+                disabled={!gameActive || gameSession?.current_turn !== currentUserId}
               />
               <Button 
                 onClick={submitWord}
-                disabled={!gameActive || !isMyTurn || !currentWord.trim()}
-                className="px-8 py-6 bg-gradient-battle hover:opacity-90"
+                disabled={!gameActive || gameSession?.current_turn !== currentUserId || !currentWord.trim()}
+                className="px-4 sm:px-8 py-3 sm:py-6 bg-gradient-battle hover:opacity-90 text-sm sm:text-base whitespace-nowrap"
               >
                 Submit
               </Button>
             </div>
             <div className="text-center">
-              <Badge variant={isMyTurn ? "default" : "secondary"}>
-                {isMyTurn ? "YOUR TURN" : `${opponent.display_name || opponent.username}'S TURN`}
+              <Badge variant={gameSession?.current_turn === currentUserId ? "default" : "secondary"} className="text-xs sm:text-sm">
+                {gameSession?.current_turn === currentUserId ? "YOUR TURN" : "OPPONENT'S TURN"}
               </Badge>
             </div>
           </CardContent>
         </Card>
 
-        {/* Used Words */}
-        {gameSession.words_used.length > 0 && (
+        {/* Used Words - Mobile Responsive */}
+        {gameSession?.words_used.length > 0 && (
           <Card className="bg-gradient-card border-secondary/40">
-            <CardHeader>
-              <CardTitle>Words Used ({gameSession.words_used.length})</CardTitle>
+            <CardHeader className="pb-2 sm:pb-4">
+              <CardTitle className="text-sm sm:text-base">Words Used ({gameSession.words_used.length})</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1 sm:gap-2">
                 {gameSession.words_used.map((word, index) => (
                   <span 
                     key={index}
-                    className="px-3 py-1 bg-primary/20 text-primary rounded-full text-sm font-medium"
+                    className="px-2 sm:px-3 py-1 bg-primary/20 text-primary rounded-full text-xs sm:text-sm font-medium"
                   >
                     {word}
                   </span>
