@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +28,7 @@ import GameModeSelection, { GameMode } from "@/components/GameModeSelection";
 import PracticeGameRoom from "@/components/PracticeGameRoom";
 import WordChainGameRoom from "@/components/WordChainGameRoom";
 import ProfileEditor from "@/components/ProfileEditor";
+import CategorySelection from "@/components/CategorySelection";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 
 interface Profile {
@@ -56,7 +56,7 @@ interface Avatar {
 const Dashboard = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [gameState, setGameState] = useState<'dashboard' | 'mode-selection' | 'practice' | 'wordchain'>('dashboard');
+  const [gameState, setGameState] = useState<'dashboard' | 'mode-selection' | 'category-selection' | 'practice' | 'wordchain'>('dashboard');
   const [selectedGameMode, setSelectedGameMode] = useState<GameMode | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<{id: string, name: string} | null>(null);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
@@ -194,10 +194,15 @@ const Dashboard = () => {
     if (mode === 'wordchain') {
       setGameState('wordchain');
     } else {
-      // For category mode, we'll need category selection - for now go to practice
-      setSelectedCategory(practiceCategories[0]); // Default to first category
-      setGameState('practice');
+      // For category mode, show category selection
+      setGameState('category-selection');
     }
+  };
+
+  const handleCategorySelect = async (category: {id: string, name: string}) => {
+    await playSound('click');
+    setSelectedCategory(category);
+    setGameState('practice');
   };
 
   const findRandomMatch = async () => {
@@ -219,11 +224,27 @@ const Dashboard = () => {
     setSelectedCategory(null);
   };
 
+  const handleBackToModeSelection = () => {
+    setGameState('mode-selection');
+    setSelectedCategory(null);
+  };
+
   if (gameState === 'mode-selection') {
     return (
       <GameModeSelection 
         onSelectMode={handleGameModeSelect}
         onBack={handleBackToDashboard}
+      />
+    );
+  }
+
+  if (gameState === 'category-selection') {
+    return (
+      <CategorySelection
+        categories={practiceCategories}
+        onSelectCategory={handleCategorySelect}
+        onBack={handleBackToModeSelection}
+        title="Choose Category for Practice"
       />
     );
   }
