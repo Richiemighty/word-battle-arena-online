@@ -1,10 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Trophy, 
   Users, 
@@ -25,7 +25,9 @@ import FriendsList from "@/components/FriendsList";
 import Leaderboard from "@/components/Leaderboard";
 import Chat from "@/components/Chat";
 import GameNotifications from "@/components/GameNotifications";
+import GameModeSelection, { GameMode } from "@/components/GameModeSelection";
 import PracticeGameRoom from "@/components/PracticeGameRoom";
+import WordChainGameRoom from "@/components/WordChainGameRoom";
 import ProfileEditor from "@/components/ProfileEditor";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 
@@ -54,10 +56,10 @@ interface Avatar {
 const Dashboard = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [practiceMode, setPracticeMode] = useState(false);
-  const [showCategoryDialog, setShowCategoryDialog] = useState(false);
-  const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [gameState, setGameState] = useState<'dashboard' | 'mode-selection' | 'practice' | 'wordchain'>('dashboard');
+  const [selectedGameMode, setSelectedGameMode] = useState<GameMode | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<{id: string, name: string} | null>(null);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [userAvatar, setUserAvatar] = useState<Avatar | null>(null);
   const { playSound } = useSoundEffects();
   const navigate = useNavigate();
@@ -70,6 +72,28 @@ const Dashboard = () => {
     { id: "sports", name: "Sports" },
     { id: "food", name: "Food" }
   ];
+
+  // Calculate user level based on credits
+  const getUserLevel = (credits: number): number => {
+    if (credits >= 7500) return 8;
+    if (credits >= 6500) return 7;
+    if (credits >= 5500) return 6;
+    if (credits >= 4500) return 5;
+    if (credits >= 3500) return 4;
+    if (credits >= 2500) return 3;
+    if (credits >= 1500) return 2;
+    if (credits >= 750) return 1;
+    return 0;
+  };
+
+  // Calculate user rank based on credits
+  const getUserRank = (credits: number): string => {
+    if (credits >= 5000) return 'Master';
+    if (credits >= 2000) return 'Expert';
+    if (credits >= 1000) return 'Advanced';
+    if (credits >= 500) return 'Intermediate';
+    return 'Beginner';
+  };
 
   useEffect(() => {
     checkUser();
@@ -108,8 +132,22 @@ const Dashboard = () => {
           variant: "destructive",
         });
       } else {
+        // Update profile with correct rank based on credits
+        const correctRank = getUserRank(profileData.total_credits);
+        if (profileData.rank !== correctRank) {
+          const { error: updateError } = await supabase
+            .from("profiles")
+            .update({ rank: correctRank })
+            .eq("id", user.id);
+          
+          if (!updateError) {
+            profileData.rank = correctRank;
+          }
+        }
+
         setProfile(profileData);
         setUserAvatar(profileData.avatars);
+        
         // Update online status
         await supabase.rpc("update_user_online_status", {
           user_id: user.id,
@@ -146,16 +184,19 @@ const Dashboard = () => {
 
   const startPracticeGame = async () => {
     await playSound('click');
-    setShowCategoryDialog(true);
+    setGameState('mode-selection');
   };
 
-  const handlePracticeCategory = async (categoryId: string) => {
+  const handleGameModeSelect = async (mode: GameMode) => {
     await playSound('click');
-    const category = practiceCategories.find(c => c.id === categoryId);
-    if (category) {
-      setSelectedCategory(category);
-      setPracticeMode(true);
-      setShowCategoryDialog(false);
+    setSelectedGameMode(mode);
+    
+    if (mode === 'wordchain') {
+      setGameState('wordchain');
+    } else {
+      // For category mode, we'll need category selection - for now go to practice
+      setSelectedCategory(practiceCategories[0]); // Default to first category
+      setGameState('practice');
     }
   };
 
@@ -172,14 +213,34 @@ const Dashboard = () => {
     setProfile(updatedProfile);
   };
 
-  if (practiceMode && selectedCategory) {
+  const handleBackToDashboard = () => {
+    setGameState('dashboard');
+    setSelectedGameMode(null);
+    setSelectedCategory(null);
+  };
+
+  if (gameState === 'mode-selection') {
+    return (
+      <GameModeSelection 
+        onSelectMode={handleGameModeSelect}
+        onBack={handleBackToDashboard}
+      />
+    );
+  }
+
+  if (gameState === 'practice' && selectedCategory) {
     return (
       <PracticeGameRoom 
         category={selectedCategory}
-        onBack={() => {
-          setPracticeMode(false);
-          setSelectedCategory(null);
-        }}
+        onBack={handleBackToDashboard}
+      />
+    );
+  }
+
+  if (gameState === 'wordchain') {
+    return (
+      <WordChainGameRoom 
+        onBack={handleBackToDashboard}
       />
     );
   }
@@ -203,6 +264,8 @@ const Dashboard = () => {
     );
   }
 
+  const userLevel = getUserLevel(profile.total_credits);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 p-3 sm:p-6">
       <div className="max-w-6xl mx-auto">
@@ -225,6 +288,7 @@ const Dashboard = () => {
               </h1>
               <div className="flex items-center justify-center sm:justify-start gap-2 mt-1">
                 <Badge variant="secondary" className="text-xs sm:text-sm">{profile.rank}</Badge>
+                <Badge variant="outline" className="text-xs sm:text-sm">Level {userLevel}</Badge>
                 <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   Online
@@ -307,7 +371,7 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground mb-4 text-xs sm:text-sm">
-                    Sharpen your skills against the computer. Perfect for warming up!
+                    Choose between Category Naming and Word Chain modes. Perfect for warming up!
                   </p>
                   <Button onClick={startPracticeGame} className="w-full bg-gradient-battle hover:opacity-90 text-sm">
                     Start Practice Game
@@ -357,36 +421,6 @@ const Dashboard = () => {
             onProfileUpdate={handleProfileUpdate}
           />
         )}
-
-        {/* Practice Category Selection Dialog */}
-        <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
-          <DialogContent className="sm:max-w-md mx-4">
-            <DialogHeader>
-              <DialogTitle className="text-sm sm:text-base">Choose Practice Category</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <Select onValueChange={handlePracticeCategory}>
-                <SelectTrigger className="text-sm">
-                  <SelectValue placeholder="Select a category to practice" />
-                </SelectTrigger>
-                <SelectContent>
-                  {practiceCategories.map((category) => (
-                    <SelectItem key={category.id} value={category.id} className="text-sm">
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowCategoryDialog(false)}
-                className="w-full text-sm"
-              >
-                Cancel
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );
