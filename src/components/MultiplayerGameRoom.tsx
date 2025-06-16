@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,7 +114,14 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
 
       if (gameError) throw gameError;
 
-      setGameSession(gameData);
+      // Ensure the game session has all required properties
+      const completeGameSession: GameSession = {
+        ...gameData,
+        game_mode: gameData.game_mode || 'category',
+        words_used: Array.isArray(gameData.words_used) ? gameData.words_used : []
+      };
+
+      setGameSession(completeGameSession);
 
       // Fetch player profiles
       const [{ data: player1 }, { data: player2 }] = await Promise.all([
@@ -132,7 +138,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
       }
 
       // Get last move to set the current word for word chain
-      if (gameData.game_mode === 'wordchain') {
+      if (completeGameSession.game_mode === 'wordchain') {
         const { data: lastMove } = await supabase
           .from("game_moves")
           .select("word")
@@ -167,8 +173,14 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
         { event: '*', schema: 'public', table: 'game_sessions', filter: `id=eq.${gameId}` },
         (payload) => {
           if (payload.new) {
-            setGameSession(payload.new as GameSession);
-            setTimeLeft(payload.new.turn_time_limit || 30);
+            const newGameData = payload.new as any;
+            const completeGameSession: GameSession = {
+              ...newGameData,
+              game_mode: newGameData.game_mode || 'category',
+              words_used: Array.isArray(newGameData.words_used) ? newGameData.words_used : []
+            };
+            setGameSession(completeGameSession);
+            setTimeLeft(newGameData.turn_time_limit || 30);
           }
         }
       )
