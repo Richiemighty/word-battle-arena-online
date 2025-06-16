@@ -6,18 +6,20 @@ import { ArrowLeft } from "lucide-react";
 interface Category {
   id: string;
   name: string;
-  icon: string;
-  description: string;
-  color: string;
-  examples: string[];
+  icon?: string;
+  description?: string;
+  color?: string;
+  examples?: string[];
 }
 
 interface CategorySelectionProps {
-  onSelectCategory: (category: Category) => void;
+  categories?: Category[];
+  onSelectCategory: (category: { id: string; name: string }) => void;
   onBack: () => void;
+  title?: string;
 }
 
-const categories: Category[] = [
+const defaultCategories: Category[] = [
   {
     id: 'animals',
     name: 'Animals',
@@ -68,7 +70,12 @@ const categories: Category[] = [
   }
 ];
 
-const CategorySelection = ({ onSelectCategory, onBack }: CategorySelectionProps) => {
+const CategorySelection = ({ 
+  categories = defaultCategories, 
+  onSelectCategory, 
+  onBack, 
+  title = "Choose Your Battle Zone" 
+}: CategorySelectionProps) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 p-3 sm:p-6">
       <div className="max-w-6xl mx-auto">
@@ -84,7 +91,7 @@ const CategorySelection = ({ onSelectCategory, onBack }: CategorySelectionProps)
             <span className="hidden sm:inline">Back</span>
           </Button>
           <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold gradient-text text-center">
-            Choose Your Battle Zone
+            {title}
           </h1>
           <div className="w-16 sm:w-24" />
         </div>
@@ -94,31 +101,35 @@ const CategorySelection = ({ onSelectCategory, onBack }: CategorySelectionProps)
           {categories.map((category) => (
             <Card 
               key={category.id}
-              className={`bg-gradient-card ${category.color} cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl`}
+              className={`bg-gradient-card ${category.color || 'border-primary/40 hover:border-primary/60'} cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl`}
               onClick={() => onSelectCategory(category)}
             >
               <CardHeader className="text-center pb-2 sm:pb-4">
-                <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">{category.icon}</div>
+                <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">{category.icon || '📝'}</div>
                 <CardTitle className="text-lg sm:text-2xl font-bold text-foreground">
                   {category.name}
                 </CardTitle>
-                <p className="text-muted-foreground text-xs sm:text-sm">{category.description}</p>
+                {category.description && (
+                  <p className="text-muted-foreground text-xs sm:text-sm">{category.description}</p>
+                )}
               </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-2">
-                  <p className="text-xs sm:text-sm font-semibold text-muted-foreground">Examples:</p>
-                  <div className="flex flex-wrap gap-1 sm:gap-2">
-                    {category.examples.map((example, index) => (
-                      <span 
-                        key={index}
-                        className="px-2 py-1 bg-secondary rounded-md text-xs text-secondary-foreground"
-                      >
-                        {example}
-                      </span>
-                    ))}
+              {category.examples && (
+                <CardContent className="pt-0">
+                  <div className="space-y-2">
+                    <p className="text-xs sm:text-sm font-semibold text-muted-foreground">Examples:</p>
+                    <div className="flex flex-wrap gap-1 sm:gap-2">
+                      {category.examples.map((example, index) => (
+                        <span 
+                          key={index}
+                          className="px-2 py-1 bg-secondary rounded-md text-xs text-secondary-foreground"
+                        >
+                          {example}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
+                </CardContent>
+              )}
             </Card>
           ))}
         </div>
