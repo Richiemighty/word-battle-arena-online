@@ -47,14 +47,26 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'game_invitations' },
         (payload) => {
+          console.log('Game invitation change:', payload);
           if (payload.new && typeof payload.new === 'object' && 'receiver_id' in payload.new && payload.new.receiver_id === currentUserId) {
             fetchInvitations();
-            playSound('notification');
-            toast({
-              title: "New Game Invitation!",
-              description: `You have a new game invitation.`,
-            });
+            if (payload.eventType === 'INSERT') {
+              playSound('notification');
+              toast({
+                title: "New Game Invitation!",
+                description: `You have a new game invitation.`,
+              });
+            }
           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'game_sessions' },
+        (payload) => {
+          console.log('Game session change:', payload);
+          // Refresh invitations when game sessions change
+          fetchInvitations();
         }
       )
       .subscribe();
@@ -67,6 +79,8 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
   const fetchInvitations = async () => {
     setLoading(true);
     try {
+      console.log('Fetching invitations for user:', currentUserId);
+      
       const { data, error } = await supabase
         .from("game_invitations")
         .select(`
@@ -83,23 +97,39 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
         .eq("status", "pending")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching invitations:', error);
+        throw error;
+      }
 
-      // Filter out invitations where game session is cancelled or completed
-      const activeInvitations = (data || []).filter(invitation => 
-        invitation.game_session?.status === 'waiting'
-      );
+      console.log('Fetched invitations:', data);
 
-      // Clean up cancelled invitations automatically
-      const cancelledInvitations = (data || []).filter(invitation => 
-        invitation.game_session?.status !== 'waiting'
-      );
+      // Filter out invitations where game session is cancelled, completed, or null
+      const activeInvitations = (data || []).filter(invitation => {
+        const gameStatus = invitation.game_session?.status;
+        return gameStatus === 'waiting' || gameStatus === 'active';
+      });
 
-      if (cancelledInvitations.length > 0) {
-        await supabase
+      // Find cancelled/completed invitations to clean up
+      const inactiveInvitations = (data || []).filter(invitation => {
+        const gameStatus = invitation.game_session?.status;
+        return !gameStatus || gameStatus === 'cancelled' || gameStatus === 'completed';
+      });
+
+      console.log('Active invitations:', activeInvitations);
+      console.log('Inactive invitations:', inactiveInvitations);
+
+      // Clean up inactive invitations automatically
+      if (inactiveInvitations.length > 0) {
+        console.log('Cleaning up inactive invitations');
+        const { error: cleanupError } = await supabase
           .from("game_invitations")
           .update({ status: "cancelled" })
-          .in("id", cancelledInvitations.map(inv => inv.id));
+          .in("id", inactiveInvitations.map(inv => inv.id));
+
+        if (cleanupError) {
+          console.error('Error cleaning up invitations:', cleanupError);
+        }
       }
 
       setInvitations(activeInvitations);
@@ -119,6 +149,8 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
     try {
       await playSound('click');
 
+      console.log('Accepting invitation:', invitation);
+
       // Check if game session is still active
       const { data: gameSession, error: gameCheckError } = await supabase
         .from("game_sessions")
@@ -126,7 +158,20 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
         .eq("id", invitation.game_session_id)
         .single();
 
-      if (gameCheckError || gameSession?.status !== 'waiting') {
+      console.log('Game session status:', gameSession);
+
+      if (gameCheckError) {
+        console.error('Error checking game status:', gameCheckError);
+        toast({
+          title: "Invitation Expired",
+          description: "This game invitation is no longer active",
+          variant: "destructive",
+        });
+        fetchInvitations(); // Refresh to remove expired invitations
+        return;
+      }
+
+      if (gameSession?.status !== 'waiting') {
         toast({
           title: "Invitation Expired",
           description: "This game invitation is no longer active",
@@ -142,18 +187,25 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
         .update({ status: "accepted" })
         .eq("id", invitation.id);
 
-      if (acceptError) throw acceptError;
+      if (acceptError) {
+        console.error('Error accepting invitation:', acceptError);
+        throw acceptError;
+      }
 
       // Update game session status
       const { error: gameError } = await supabase
         .from("game_sessions")
         .update({ 
           status: "active",
-          started_at: new Date().toISOString()
+          started_at: new Date().toISOString(),
+          turn_time_limit: 30
         })
         .eq("id", invitation.game_session_id);
 
-      if (gameError) throw gameError;
+      if (gameError) {
+        console.error('Error updating game session:', gameError);
+        throw gameError;
+      }
 
       await playSound('notification');
       toast({
@@ -176,15 +228,25 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
     }
   };
 
-  const rejectInvitation = async (invitationId: string) => {
+  const rejectInvitation = async (invitationId: string, gameSessionId: string) => {
     try {
       await playSound('click');
-      const { error } = await supabase
+      
+      // Update invitation status
+      const { error: inviteError } = await supabase
         .from("game_invitations")
         .update({ status: "rejected" })
         .eq("id", invitationId);
 
-      if (error) throw error;
+      if (inviteError) throw inviteError;
+
+      // Cancel the game session
+      const { error: gameError } = await supabase
+        .from("game_sessions")
+        .update({ status: "cancelled" })
+        .eq("id", gameSessionId);
+
+      if (gameError) throw gameError;
 
       toast({
         title: "Invitation Rejected",
@@ -195,6 +257,11 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
       setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
     } catch (error) {
       console.error("Error rejecting invitation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to reject invitation",
+        variant: "destructive",
+      });
     }
   };
 
@@ -210,11 +277,11 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
   };
 
   if (loading) {
-    return <div>Loading invitations...</div>;
+    return <div className="text-sm text-muted-foreground mb-6">Loading invitations...</div>;
   }
 
   if (!invitations.length) {
-    return <div className="text-sm text-muted-foreground mb-6">No pending game invitations.</div>;
+    return null;
   }
 
   return (
@@ -251,7 +318,7 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => rejectInvitation(invitation.id)}
+                    onClick={() => rejectInvitation(invitation.id, invitation.game_session_id)}
                     className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground flex-1 sm:flex-none text-xs sm:text-sm"
                   >
                     <XCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />

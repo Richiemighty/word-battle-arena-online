@@ -52,6 +52,14 @@ const GameInviteDialog = ({ friendId, currentUserId, isOpen, onClose }: GameInvi
 
     setLoading(true);
     try {
+      console.log("Creating game session with:", {
+        player1_id: currentUserId,
+        player2_id: friendId,
+        category: selectedGameMode === "category" ? selectedCategory : "WordChain",
+        game_mode: selectedGameMode,
+        status: "waiting"
+      });
+
       // Create a new game session
       const { data: gameData, error: gameError } = await supabase
         .from("game_sessions")
@@ -69,7 +77,12 @@ const GameInviteDialog = ({ friendId, currentUserId, isOpen, onClose }: GameInvi
         .select()
         .single();
 
-      if (gameError) throw gameError;
+      if (gameError) {
+        console.error("Game session creation error:", gameError);
+        throw gameError;
+      }
+
+      console.log("Game session created:", gameData);
 
       // Create game invitation
       const { error: inviteError } = await supabase
@@ -83,7 +96,10 @@ const GameInviteDialog = ({ friendId, currentUserId, isOpen, onClose }: GameInvi
           status: 'pending'
         });
 
-      if (inviteError) throw inviteError;
+      if (inviteError) {
+        console.error("Game invitation creation error:", inviteError);
+        throw inviteError;
+      }
 
       const gameTypeText = selectedGameMode === "category" 
         ? `${selectedCategory} Category Naming` 
@@ -101,7 +117,7 @@ const GameInviteDialog = ({ friendId, currentUserId, isOpen, onClose }: GameInvi
       console.error("Error sending game invitation:", error);
       toast({
         title: "Error",
-        description: "Failed to send game invitation",
+        description: `Failed to send game invitation: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
     } finally {
