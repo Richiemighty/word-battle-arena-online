@@ -114,11 +114,13 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
 
       if (gameError) throw gameError;
 
-      // Ensure the game session has all required properties
+      // Ensure the game session has all required properties with proper type handling
       const completeGameSession: GameSession = {
         ...gameData,
         game_mode: gameData.game_mode || 'category',
-        words_used: Array.isArray(gameData.words_used) ? gameData.words_used : []
+        words_used: Array.isArray(gameData.words_used) 
+          ? gameData.words_used.filter((word): word is string => typeof word === 'string')
+          : []
       };
 
       setGameSession(completeGameSession);
@@ -177,7 +179,9 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
             const completeGameSession: GameSession = {
               ...newGameData,
               game_mode: newGameData.game_mode || 'category',
-              words_used: Array.isArray(newGameData.words_used) ? newGameData.words_used : []
+              words_used: Array.isArray(newGameData.words_used) 
+                ? newGameData.words_used.filter((word): word is string => typeof word === 'string')
+                : []
             };
             setGameSession(completeGameSession);
             setTimeLeft(newGameData.turn_time_limit || 30);

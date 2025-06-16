@@ -229,6 +229,7 @@ export type Database = {
           created_at: string | null
           current_turn: string | null
           ended_at: string | null
+          game_mode: string | null
           id: string
           max_credits: number | null
           player1_id: string | null
@@ -248,6 +249,7 @@ export type Database = {
           created_at?: string | null
           current_turn?: string | null
           ended_at?: string | null
+          game_mode?: string | null
           id?: string
           max_credits?: number | null
           player1_id?: string | null
@@ -267,6 +269,7 @@ export type Database = {
           created_at?: string | null
           current_turn?: string | null
           ended_at?: string | null
+          game_mode?: string | null
           id?: string
           max_credits?: number | null
           player1_id?: string | null
