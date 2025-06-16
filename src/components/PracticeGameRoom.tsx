@@ -14,7 +14,6 @@ interface PracticeGameRoomProps {
 }
 
 const PracticeGameRoom = ({ category, onBack }: PracticeGameRoomProps) => {
-  const [currentWord, setCurrentWord] = useState("");
   const [userInput, setUserInput] = useState("");
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(120);
@@ -25,24 +24,51 @@ const PracticeGameRoom = ({ category, onBack }: PracticeGameRoomProps) => {
   const [streak, setStreak] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
-  const [computerResponse, setComputerResponse] = useState("");
-  const [showComputerResponse, setShowComputerResponse] = useState(false);
+  const [computerWord, setComputerWord] = useState("");
+  const [isPlayerTurn, setIsPlayerTurn] = useState(true);
+  const [showComputerThinking, setShowComputerThinking] = useState(false);
   const { playSound } = useSoundEffects();
 
-  // Category word lists
-  const wordLists = {
-    animals: ["cat", "dog", "tiger", "lion", "bear", "wolf", "fox", "rabbit", "mouse", "horse"],
-    fruits: ["apple", "banana", "orange", "grape", "mango", "pear", "peach", "plum", "berry", "cherry"],
-    countries: ["usa", "china", "japan", "france", "brazil", "india", "canada", "mexico", "russia", "italy"],
-    colors: ["red", "blue", "green", "yellow", "purple", "orange", "pink", "brown", "black", "white"],
-    sports: ["soccer", "tennis", "boxing", "golf", "rugby", "hockey", "cricket", "swimming", "running", "cycling"],
-    food: ["pizza", "burger", "pasta", "salad", "soup", "bread", "rice", "meat", "fish", "cheese"]
+  // Category word lists - same as multiplayer
+  const wordDatabase: Record<string, string[]> = {
+    animals: [
+      "dog", "cat", "elephant", "lion", "tiger", "bear", "zebra", "giraffe", "hippopotamus", "rhinoceros",
+      "kangaroo", "koala", "panda", "wolf", "fox", "deer", "moose", "buffalo", "antelope", "leopard",
+      "cheetah", "crocodile", "alligator", "lizard", "snake", "cobra", "python", "viper", "turtle", "tortoise",
+      "frog", "toad", "whale", "dolphin", "shark", "octopus", "crab", "lobster", "ant", "bee", "butterfly",
+      "spider", "bat", "mouse", "horse", "cow", "pig", "chicken", "duck", "goose", "eagle", "owl", "parrot"
+    ],
+    fruits: [
+      "apple", "banana", "orange", "grape", "strawberry", "blueberry", "pineapple", "mango", "papaya", "kiwi",
+      "peach", "pear", "cherry", "plum", "watermelon", "cantaloupe", "coconut", "lemon", "lime", "avocado",
+      "apricot", "nectarine", "blackberry", "raspberry", "cranberry", "pomegranate", "fig", "guava", "dragonfruit",
+      "jackfruit", "lychee", "passion fruit", "starfruit", "persimmon", "tangerine", "grapefruit", "dates"
+    ],
+    countries: [
+      "usa", "canada", "mexico", "brazil", "argentina", "chile", "france", "germany", "italy", "spain",
+      "portugal", "england", "ireland", "scotland", "norway", "sweden", "finland", "russia", "china", "japan",
+      "india", "thailand", "vietnam", "australia", "egypt", "nigeria", "kenya", "south africa", "morocco", "turkey"
+    ],
+    colors: [
+      "red", "blue", "green", "yellow", "purple", "orange", "pink", "brown", "black", "white",
+      "gray", "violet", "indigo", "turquoise", "magenta", "cyan", "lime", "maroon", "navy", "olive",
+      "teal", "coral", "salmon", "peach", "beige", "ivory", "lavender", "tan", "gold", "silver"
+    ],
+    sports: [
+      "football", "basketball", "tennis", "swimming", "baseball", "volleyball", "hockey", "golf", "boxing", "wrestling",
+      "running", "cycling", "skiing", "surfing", "climbing", "badminton", "cricket", "rugby", "soccer", "racing",
+      "diving", "rowing", "sailing", "archery", "fencing", "gymnastics", "judo", "karate", "polo", "bowling"
+    ],
+    food: [
+      "pizza", "burger", "sushi", "pasta", "salad", "soup", "sandwich", "tacos", "rice", "bread",
+      "cheese", "chicken", "beef", "fish", "noodles", "curry", "steak", "pancakes", "waffles", "ice cream",
+      "cake", "cookies", "chocolate", "yogurt", "eggs", "bacon", "ham", "turkey", "salmon", "shrimp"
+    ]
   };
 
-  const currentWordList = wordLists[category.id as keyof typeof wordLists] || wordLists.animals;
+  const currentWordList = wordDatabase[category.id as keyof typeof wordDatabase] || wordDatabase.animals;
 
   useEffect(() => {
-    // Load high score from localStorage
     const savedHighScore = localStorage.getItem(`highScore_${category.id}`);
     if (savedHighScore) {
       setHighScore(parseInt(savedHighScore));
@@ -71,102 +97,94 @@ const PracticeGameRoom = ({ category, onBack }: PracticeGameRoomProps) => {
     setFeedback("");
     setStreak(0);
     setIsNewHighScore(false);
-    setShowComputerResponse(false);
-    generateNewWord();
+    setIsPlayerTurn(true);
+    setComputerWord("");
+    
+    // Computer starts with first word
+    generateComputerWord();
   };
 
-  const generateNewWord = () => {
+  const generateComputerWord = useCallback(() => {
     const availableWords = currentWordList.filter(word => !usedWords.includes(word));
     if (availableWords.length > 0) {
       const randomWord = availableWords[Math.floor(Math.random() * availableWords.length)];
-      setCurrentWord(randomWord);
+      setComputerWord(randomWord);
+      setUsedWords(prev => [...prev, randomWord]);
+      setIsPlayerTurn(true);
     } else {
-      // Reset used words if all are used
-      setUsedWords([]);
-      const randomWord = currentWordList[Math.floor(Math.random() * currentWordList.length)];
-      setCurrentWord(randomWord);
+      // Computer runs out of words - player wins
+      endGame();
     }
-  };
+  }, [currentWordList, usedWords]);
 
-  const generateComputerResponse = useCallback((lastLetter: string) => {
-    const possibleWords = currentWordList.filter(word => 
-      word.toLowerCase().startsWith(lastLetter.toLowerCase()) && 
-      !usedWords.includes(word) &&
-      word !== currentWord
-    );
+  const computerRespond = useCallback(() => {
+    setShowComputerThinking(true);
+    setIsPlayerTurn(false);
     
-    if (possibleWords.length > 0) {
-      const computerWord = possibleWords[Math.floor(Math.random() * possibleWords.length)];
-      setComputerResponse(computerWord);
-      setUsedWords(prev => [...prev, computerWord]);
-      setShowComputerResponse(true);
+    setTimeout(() => {
+      const availableWords = currentWordList.filter(word => 
+        !usedWords.includes(word) && word !== computerWord
+      );
       
-      // After showing computer response, generate next word
-      setTimeout(() => {
-        const nextLetter = computerWord[computerWord.length - 1];
-        const nextPossibleWords = currentWordList.filter(word => 
-          word.toLowerCase().startsWith(nextLetter.toLowerCase()) && 
-          !usedWords.includes(word) &&
-          word !== computerWord
-        );
-        
-        if (nextPossibleWords.length > 0) {
-          const nextWord = nextPossibleWords[Math.floor(Math.random() * nextPossibleWords.length)];
-          setCurrentWord(nextWord);
-        } else {
-          generateNewWord();
-        }
-        setShowComputerResponse(false);
-      }, 2000);
-    } else {
-      generateNewWord();
-    }
-  }, [currentWordList, usedWords, currentWord]);
+      if (availableWords.length > 0) {
+        const randomWord = availableWords[Math.floor(Math.random() * availableWords.length)];
+        setComputerWord(randomWord);
+        setUsedWords(prev => [...prev, randomWord]);
+        setShowComputerThinking(false);
+        setIsPlayerTurn(true);
+      } else {
+        // Computer runs out of words - player wins bonus points
+        setScore(prev => prev + 100);
+        setFeedback("Computer ran out of words! Bonus +100 points!");
+        endGame();
+      }
+    }, 2000); // Computer "thinks" for 2 seconds
+  }, [currentWordList, usedWords, computerWord]);
 
   const submitWord = async () => {
-    if (!userInput.trim() || !gameActive) return;
+    if (!userInput.trim() || !gameActive || !isPlayerTurn) return;
 
     const word = userInput.toLowerCase().trim();
-    const lastLetterOfCurrent = currentWord[currentWord.length - 1].toLowerCase();
-    const firstLetterOfInput = word[0].toLowerCase();
 
-    // Check if word starts with the last letter of current word
-    if (firstLetterOfInput === lastLetterOfCurrent && 
-        currentWordList.includes(word) && 
-        !usedWords.includes(word)) {
-      
-      await playSound('correct');
-      const points = word.length * 10 + (streak * 5);
-      setScore(prev => prev + points);
-      setUsedWords(prev => [...prev, word]);
-      setStreak(prev => prev + 1);
-      setFeedback(`Correct! +${points} points`);
-      
-      // Generate computer response
-      const lastLetter = word[word.length - 1];
-      generateComputerResponse(lastLetter);
-      
-    } else {
+    // Check if word is valid and from the correct category
+    if (!currentWordList.includes(word)) {
       await playSound('incorrect');
       setStreak(0);
-      if (usedWords.includes(word)) {
-        setFeedback("Word already used!");
-      } else if (firstLetterOfInput !== lastLetterOfCurrent) {
-        setFeedback(`Word must start with "${lastLetterOfCurrent.toUpperCase()}"`);
-      } else {
-        setFeedback("Invalid word!");
-      }
+      setFeedback(`"${userInput}" is not a valid ${category.name.toLowerCase().slice(0, -1)}!`);
+      setUserInput("");
+      setTimeout(() => setFeedback(""), 2000);
+      return;
     }
 
+    // Check if word was already used
+    if (usedWords.includes(word)) {
+      await playSound('incorrect');
+      setStreak(0);
+      setFeedback("Word already used!");
+      setUserInput("");
+      setTimeout(() => setFeedback(""), 2000);
+      return;
+    }
+
+    // Valid word
+    await playSound('correct');
+    const points = word.length * 10 + (streak * 5);
+    setScore(prev => prev + points);
+    setUsedWords(prev => [...prev, word]);
+    setStreak(prev => prev + 1);
+    setFeedback(`Correct! +${points} points`);
     setUserInput("");
+    
     setTimeout(() => setFeedback(""), 2000);
+
+    // Computer's turn
+    computerRespond();
   };
 
   const endGame = async () => {
     setGameActive(false);
     setGameOver(true);
     
-    // Check for new high score
     if (score > highScore) {
       setHighScore(score);
       setIsNewHighScore(true);
@@ -186,9 +204,10 @@ const PracticeGameRoom = ({ category, onBack }: PracticeGameRoomProps) => {
     setFeedback("");
     setStreak(0);
     setIsNewHighScore(false);
-    setCurrentWord("");
+    setComputerWord("");
     setUserInput("");
-    setShowComputerResponse(false);
+    setIsPlayerTurn(true);
+    setShowComputerThinking(false);
   };
 
   return (
@@ -245,7 +264,7 @@ const PracticeGameRoom = ({ category, onBack }: PracticeGameRoomProps) => {
           <CardHeader>
             <CardTitle className="text-center">
               {!gameActive && !gameOver && "Ready to Practice?"}
-              {gameActive && "Word Chain Challenge"}
+              {gameActive && `${category.name} Challenge`}
               {gameOver && "Game Over!"}
             </CardTitle>
           </CardHeader>
@@ -253,7 +272,7 @@ const PracticeGameRoom = ({ category, onBack }: PracticeGameRoomProps) => {
             {!gameActive && !gameOver && (
               <div className="text-center">
                 <p className="text-muted-foreground mb-4">
-                  Create word chains by making words that start with the last letter of the previous word!
+                  Name {category.name.toLowerCase()} with the computer! Take turns naming items from this category.
                 </p>
                 <Button onClick={startGame} className="bg-gradient-battle hover:opacity-90">
                   Start Practice
@@ -264,42 +283,51 @@ const PracticeGameRoom = ({ category, onBack }: PracticeGameRoomProps) => {
             {gameActive && (
               <>
                 <div className="text-center space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Current word:</p>
-                    <Badge variant="secondary" className="text-lg px-4 py-2">
-                      {currentWord}
-                    </Badge>
-                  </div>
-                  
-                  {showComputerResponse && (
-                    <div className="animate-fade-in">
-                      <p className="text-sm text-muted-foreground mb-2">Computer plays:</p>
+                  {computerWord && (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">Computer played:</p>
                       <Badge variant="outline" className="text-lg px-4 py-2 border-blue-500">
-                        {computerResponse}
+                        {computerWord}
                       </Badge>
                     </div>
                   )}
+                  
+                  {showComputerThinking && (
+                    <div className="animate-pulse">
+                      <p className="text-sm text-muted-foreground mb-2">Computer is thinking...</p>
+                      <div className="h-8 bg-muted rounded animate-pulse"></div>
+                    </div>
+                  )}
 
-                  <div className="flex gap-2">
-                    <Input
-                      value={userInput}
-                      onChange={(e) => setUserInput(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && submitWord()}
-                      placeholder="Enter your word..."
-                      className="bg-input"
-                    />
-                    <Button onClick={submitWord} disabled={!userInput.trim()}>
-                      Submit
-                    </Button>
-                  </div>
+                  {isPlayerTurn && !showComputerThinking && (
+                    <div className="flex gap-2">
+                      <Input
+                        value={userInput}
+                        onChange={(e) => setUserInput(e.target.value)}
+                        onKeyPress={(e) => e.key === "Enter" && submitWord()}
+                        placeholder={`Enter a ${category.name.toLowerCase().slice(0, -1)}...`}
+                        className="bg-input"
+                        disabled={!isPlayerTurn}
+                      />
+                      <Button onClick={submitWord} disabled={!userInput.trim() || !isPlayerTurn}>
+                        Submit
+                      </Button>
+                    </div>
+                  )}
 
                   {feedback && (
                     <p className={`text-sm font-medium ${
-                      feedback.includes("Correct") ? "text-green-500" : "text-red-500"
+                      feedback.includes("Correct") || feedback.includes("Bonus") ? "text-green-500" : "text-red-500"
                     }`}>
                       {feedback}
                     </p>
                   )}
+
+                  <div className="text-center">
+                    <Badge variant={isPlayerTurn && !showComputerThinking ? "default" : "secondary"} className="text-sm">
+                      {showComputerThinking ? "COMPUTER'S TURN" : isPlayerTurn ? "YOUR TURN" : "WAITING..."}
+                    </Badge>
+                  </div>
                 </div>
 
                 <div className="space-y-2">

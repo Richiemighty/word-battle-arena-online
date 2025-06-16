@@ -16,6 +16,7 @@ interface GameSession {
   player1_score: number;
   player2_score: number;
   category: string;
+  game_mode?: string;
   status: string;
   words_used: string[];
   started_at: string;
@@ -53,11 +54,9 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
-
-
-
+  // Word database for category mode
   const wordDatabase: Record<string, string[]> = {
-    "Animals" : [
+    "Animals": [
       "dog", "cat", "elephant", "lion", "tiger", "bear", "zebra", "giraffe", "hippopotamus", "rhinoceros",
       "kangaroo", "koala", "panda", "wolf", "fox", "deer", "moose", "buffalo", "antelope", "leopard",
       "cheetah", "crocodile", "alligator", "lizard", "snake", "cobra", "python", "viper", "turtle", "tortoise",
@@ -67,258 +66,94 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
       "camel", "llama", "alpaca", "pig", "cow", "goat", "sheep", "chicken", "duck", "goose", "turkey",
       "peacock", "eagle", "hawk", "falcon", "owl", "parrot", "pigeon", "sparrow", "penguin", "flamingo",
       "seal", "walrus", "otter", "beaver", "platypus", "porcupine", "hedgehog", "armadillo", "aardvark",
-      "chimpanzee", "gorilla", "orangutan", "baboon", "lemur", "meerkat", "mongoose", "raccoon", "skunk",
-      
-      "boar", "yak", "bison", "ocelot", "jaguar", "caracal", "lynx", "cougar", "panther", "civet",
-      "genet", "serval", "snow leopard", "clouded leopard", "dhole", "dingoe", "jackal", "hyena", "wolverine",
-      "ferret", "weasel", "stoat", "ermine", "badger", "mink", "quokka", "wallaby", "tasmanian devil", "bandicoot",
-      "numbat", "echidna", "tenrec", "slow loris", "tarsier", "aye-aye", "capuchin", "marmoset", "howler monkey", "saki",
-      "uakari", "proboscis monkey", "gelada", "mandrill", "colobus", "gibbon", "manatee", "dugong", "narwhal", "beluga",
-      "blue whale", "orca", "minke whale", "fin whale", "humpback whale", "sperm whale", "saola", "markhor", "ibex", "tahr",
-      "chamois", "hartebeest", "gnu", "eland", "springbok", "kudu", "gerbil", "vole", "lemming", "capybara", "agouti",
-      "paca", "nutria", "pangolin", "solenodon", "desman", "shrew", "mole", "hedgehog", "tapir", "okapi", "aardwolf",
-      "fossa", "coati", "kinkajou", "tasmanian tiger", "quoll", "numididae", "cassowary", "emu", "kiwi", "rhea",
-      "albatross", "booby", "frigatebird", "tern", "auk", "gannet", "loon", "heron", "egret", "ibis",
-      "spoonbill", "crane", "stork", "bustard", "kookaburra", "lyrebird", "magpie", "toucan", "hornbill", "hoatzin",
-      "weaver", "drongo", "babbler", "cuckoo", "nightjar", "swift", "swallow", "kingfisher", "woodpecker", "nuthatch",
-      "wren", "warbler", "thrush", "oriole", "finch", "canary", "crossbill", "siskin", "lark", "pipit",
-      "bittern", "rail", "coot", "grebe", "darter", "anhinga", "turaco", "ptarmigan", "grouse", "quail",
-      "partridge", "pheasant", "horned toad", "monitor lizard", "iguana", "gecko", "chameleon", "anole", "skink", "basilisk",
-      "caiman", "gavial", "komodo dragon", "sawfish", "ray", "stingray", "manta ray", "goby", "eel", "barracuda",
-      "anchovy", "herring", "sardine", "cod", "haddock", "flounder", "halibut", "sole", "tilapia", "catfish",
-      "piranha", "tetra", "angelfish", "guppy", "molly", "platy", "goldfish", "koi", "betta", "clownfish",
-      "seahorse", "pipefish", "sunfish", "lionfish", "scorpionfish", "stonefish", "blowfish", "porcupinefish", "boxfish", "pufferfish",
-      "salmon", "trout", "carp", "bass", "perch", "walleye", "pike", "muskellunge", "zander", "gar",
-      "bowfin", "sturgeon", "lamprey", "hagfish", "lungfish", "coelacanth", "arowana", "bichir", "mudskipper", "electric eel"
+      "chimpanzee", "gorilla", "orangutan", "baboon", "lemur", "meerkat", "mongoose", "raccoon", "skunk"
     ],
-    "Fruits" : [
-      'apple', 'banana', 'orange', 'grape', 'strawberry', 'blueberry', 'pineapple', 'mango', 'papaya', 'kiwi',
-      'peach', 'pear', 'cherry', 'plum', 'watermelon', 'cantaloupe', 'coconut', 'lemon', 'lime', 'avocado',
-      'apricot', 'nectarine', 'blackberry', 'raspberry', 'cranberry', 'pomegranate', 'fig', 'guava', 'passionfruit', 'dragonfruit',
-      'jackfruit', 'durian', 'lychee', 'longan', 'tamarind', 'starfruit', 'rambutan', 'soursop', 'custard apple', 'mulberry',
-      'boysenberry', 'gooseberry', 'elderberry', 'acerola', 'persimmon', 'quince', 'jabuticaba', 'sapodilla', 'loquat', 'medlar',
-      'miracle fruit', 'breadfruit', 'ackee', 'salak', 'horned melon', 'buddhas hand', 'mangosteen', 'langsat', 'santol', 'rose apple',
-      'bilimbi', 'naranjilla', 'camu camu', 'huckleberry', 'jostaberry', 'tangelo', 'ugli fruit', 'pomelo', 'calamansi', 'yuzu',
-      'kumquat', 'bergamot', 'clementine', 'mandarin', 'tangerine', 'blood orange', 'white currant', 'red currant', 'black currant', 'barberry',
-      'sea buckthorn', 'amarena cherry', 'yellow passionfruit', 'ice cream bean', 'marang', 'pepino melon', 'feijoa', 'cherimoya', 'bael', 'mamoncillo',
-      'pineberry', 'cloudberry', 'rowan berry', 'hawthorn berry', 'serviceberry', 'mayhaw', 'indian gooseberry', 'ambarella', 'canistel', 'lucuma',
-      'monstera deliciosa', 'sugar apple', 'keppel fruit', 'cupuacu', 'camu-camu', 'nashi pear', 'desert lime', 'illawarra plum', 'muntries', 'finger lime',
-      'santol', 'mamey sapote', 'black sapote', 'white sapote', 'tamarillo', 'chokecherry', 'desert fig', 'morinda', 'biriba', 'chalta',
-      'jambolan', 'muntingia', 'wood apple', 'betel nut', 'langsat', 'duku', 'velvet apple', 'cudrania', 'cudrania tricuspidata', 'santol',
-      'monkey orange', 'baobab fruit', 'marula', 'imbe', 'safou', 'african star apple', 'terap', 'pulasan', 'santol', 'genip',
-      'ice apple', 'java apple', 'mammee apple', 'cashew apple', 'malay apple', 'rose apple', 'star apple', 'black cherry', 'yellow cherry', 'surinam cherry',
-      'white mulberry', 'purple mangosteen', 'green sapote', 'illama', 'pindo palm fruit', 'oil palm fruit', 'peach palm fruit', 'doum palm fruit', 'snakefruit', 'yangmei',
-      'cherry plum', 'greengage', 'damson', 'mirabelle plum', 'sloe', 'hackberry', 'buffaloberry', 'desert banana', 'desert quandong', 'bignay',
-      'maqui berry', 'chilean guava', 'chiltepin pepper fruit', 'miracle berry', 'melon pear', 'indian almond fruit', 'hog plum', 'nipa palm fruit', 'guavaberry', 'sea grape',
-      'pili nut fruit', 'brazilian guava', 'screw pine fruit', 'cattley guava', 'red mombin', 'yellow mombin', 'tahitian lime', 'wild lime', 'key lime', 'mountain soursop',
-      'giant granadilla', 'banana passionfruit', 'sweet granadilla', 'finger banana', 'plantain', 'baby banana', 'red banana', 'manzano banana', 'ice cream banana', 'apple banana',
-      'wine grape', 'concord grape', 'moon drop grape', 'cotton candy grape', 'muscat grape', 'scuppernong grape', 'zinfandel grape', 'chasselas', 'fox grape', 'vitamin C berry',
-      'bush tomato', 'australian finger lime', 'kakadu plum', 'native currant', 'sandpaper fig', 'bunya nut fruit', 'midyim berry', 'red bush apple', 'water apple', 'jungle plum'
+    "Fruits": [
+      "apple", "banana", "orange", "grape", "strawberry", "blueberry", "pineapple", "mango", "papaya", "kiwi",
+      "peach", "pear", "cherry", "plum", "watermelon", "cantaloupe", "coconut", "lemon", "lime", "avocado",
+      "apricot", "nectarine", "blackberry", "raspberry", "cranberry", "pomegranate", "fig", "guava", "passionfruit", "dragonfruit",
+      "jackfruit", "durian", "lychee", "longan", "tamarind", "starfruit", "rambutan", "soursop", "custard apple", "mulberry",
+      "boysenberry", "gooseberry", "elderberry", "acerola", "persimmon", "quince", "jabuticaba", "sapodilla", "loquat", "medlar"
     ],
-    "Countries" : [
-      'france', 'japan', 'brazil', 'canada', 'australia', 'germany', 'italy', 'spain', 'mexico', 'india',
-      'china', 'russia', 'egypt', 'nigeria', 'argentina', 'chile', 'norway', 'sweden', 'thailand', 'vietnam',
-      'united states', 'united kingdom', 'south africa', 'kenya', 'ethiopia', 'ghana', 'morocco', 'algeria', 'tunisia', 'libya',
-      'iraq', 'iran', 'israel', 'saudi arabia', 'united arab emirates', 'qatar', 'kuwait', 'turkey', 'greece', 'portugal',
-      'netherlands', 'belgium', 'switzerland', 'austria', 'poland', 'czech republic', 'slovakia', 'hungary', 'romania', 'bulgaria',
-      'croatia', 'slovenia', 'serbia', 'bosnia and herzegovina', 'montenegro', 'north macedonia', 'albania', 'iceland', 'finland', 'denmark',
-      'ireland', 'ukraine', 'belarus', 'moldova', 'georgia', 'armenia', 'azerbaijan', 'kazakhstan', 'uzbekistan', 'turkmenistan',
-      'kyrgyzstan', 'tajikistan', 'afghanistan', 'pakistan', 'bangladesh', 'sri lanka', 'nepal', 'bhutan', 'maldives', 'myanmar',
-      'laos', 'cambodia', 'malaysia', 'indonesia', 'philippines', 'south korea', 'north korea', 'mongolia', 'new zealand', 'fiji',
-      'papua new guinea', 'solomon islands', 'vanuatu', 'samoa', 'tonga', 'palau', 'micronesia', 'marshall islands', 'nauru', 'kiribati',
-      'singapore', 'brunei', 'east timor', 'venezuela', 'colombia', 'peru', 'ecuador', 'uruguay', 'paraguay', 'bolivia',
-      'panama', 'costa rica', 'nicaragua', 'honduras', 'el salvador', 'guatemala', 'belize', 'cuba', 'haiti', 'dominican republic',
-      'jamaica', 'trinidad and tobago', 'barbados', 'bahamas', 'grenada', 'saint lucia', 'saint vincent and the grenadines', 'antigua and barbuda',
-      'saint kitts and nevis', 'dominica', 'venezuela', 'suriname', 'guyana', 'namibia', 'zambia', 'zimbabwe', 'mozambique', 'angola',
-      'malawi', 'botswana', 'lesotho', 'eswatini', 'tanzania', 'uganda', 'rwanda', 'burundi', 'democratic republic of the congo', 'republic of the congo',
-      'central african republic', 'cameroon', 'gabon', 'equatorial guinea', 'chad', 'niger', 'mali', 'senegal', 'gambia', 'guinea',
-      'guinea-bissau', 'sierra leone', 'liberia', 'ivory coast', 'benin', 'togo', 'cape verde', 'mauritania', 'sudan', 'south sudan',
-      'somalia', 'djibouti', 'eritrea', 'seychelles', 'comoros', 'madagascar', 'mauritius', 'palestine', 'vatican city'
+    "Countries": [
+      "usa", "canada", "mexico", "brazil", "argentina", "chile", "france", "germany", "italy", "spain",
+      "portugal", "england", "ireland", "scotland", "norway", "sweden", "finland", "russia", "china", "japan",
+      "india", "thailand", "vietnam", "australia", "egypt", "nigeria", "kenya", "south africa", "morocco", "turkey",
+      "greece", "poland", "ukraine", "romania", "hungary", "czech republic", "slovakia", "bulgaria", "croatia", "serbia"
     ],
-  
-    "Colors" : [
-      'red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'brown', 'black', 'white',
-      'gray', 'violet', 'indigo', 'turquoise', 'magenta', 'cyan', 'lime', 'maroon', 'navy', 'olive',
-      'teal', 'coral', 'salmon', 'peach', 'beige', 'ivory', 'lavender', 'tan', 'gold', 'silver',
-      'bronze', 'amber', 'charcoal', 'mint', 'plum', 'crimson', 'burgundy', 'mustard', 'aquamarine', 'periwinkle',
-      'apricot', 'chartreuse', 'ochre', 'saffron', 'copper', 'brick', 'cerulean', 'fuchsia', 'eggplant', 'canary yellow',
-      'sea green', 'forest green', 'sky blue', 'baby blue', 'royal blue', 'midnight blue', 'neon green', 'neon pink', 'hot pink', 'bubblegum pink',
-      'rust', 'mahogany', 'sand', 'sepia', 'wheat', 'slate gray', 'steel blue', 'azure', 'alabaster', 'jet black',
-      'ebony', 'snow', 'blush', 'indian red', 'firebrick', 'rose', 'mulberry', 'powder blue', 'flamingo', 'mocha',
-      'denim', 'khaki', 'orchid', 'raspberry', 'lemon', 'pine green', 'sage', 'jade', 'taupe', 'hazel',
-      'cobalt', 'cherry', 'carnation pink', 'persian blue', 'ice blue', 'shadow', 'dusty rose', 'space gray', 'mint cream', 'ash gray',
-      'manatee', 'onyx', 'zucchini green', 'puce', 'celadon', 'moss green', 'drab', 'bistre', 'tangerine', 'sunset orange',
-      'pastel yellow', 'pastel green', 'pastel blue', 'pastel pink', 'electric blue', 'fluorescent green', 'lava', 'amaranth', 'lapis lazuli', 'taupe gray'
+    "Colors": [
+      "red", "blue", "green", "yellow", "purple", "orange", "pink", "brown", "black", "white",
+      "gray", "violet", "indigo", "turquoise", "magenta", "cyan", "lime", "maroon", "navy", "olive",
+      "teal", "coral", "salmon", "peach", "beige", "ivory", "lavender", "tan", "gold", "silver",
+      "bronze", "amber", "charcoal", "mint", "plum", "crimson", "burgundy", "mustard", "aquamarine", "periwinkle"
     ],
-    "Sports" : [
-      'football', 'basketball', 'tennis', 'swimming', 'baseball', 'volleyball', 'hockey', 'golf', 'boxing', 'wrestling',
-      'running', 'cycling', 'skiing', 'surfing', 'climbing', 'badminton', 'cricket', 'rugby', 'soccer', 'racing',
-      'table tennis', 'handball', 'squash', 'judo', 'karate', 'taekwondo', 'archery', 'fencing', 'gymnastics', 'equestrian',
-      'skateboarding', 'snowboarding', 'bobsledding', 'luge', 'biathlon', 'triathlon', 'pentathlon', 'rowing', 'canoeing', 'kayaking',
-      'sailing', 'speed skating', 'figure skating', 'ice dancing', 'ballet on ice', 'billiards', 'snooker', 'darts', 'bowling', 'paintball',
-      'polo', 'water polo', 'lacrosse', 'motocross', 'bmx', 'parkour', 'freerunning', 'kickboxing', 'muay thai', 'capoeira',
-      'sumo wrestling', 'powerlifting', 'weightlifting', 'strongman', 'crossfit', 'cheerleading', 'diving', 'synchronized swimming', 'bodybuilding', 'orienteering',
-      'speed climbing', 'mountaineering', 'trail running', 'ultramarathon', 'ice hockey', 'field hockey', 'indoor soccer', 'futsal', 'beach soccer', 'beach volleyball',
-      'paddleboarding', 'windsurfing', 'kitesurfing', 'paragliding', 'hang gliding', 'skydiving', 'base jumping', 'bungee jumping', 'sailing', 'dragon boat racing',
-      'drone racing', 'esports', 'auto racing', 'kart racing', 'formula one', 'rally racing', 'jet skiing', 'wakeboarding', 'horse racing', 'bull riding',
-      'rodeo', 'sambo', 'aikido', 'chessboxing', 'chess', 'draughts', 'kabaddi', 'sepak takraw', 'hurling', 'shinty',
-      'pelota', 'petanque', 'boules', 'curling', 'gaelic football', 'australian rules football', 'floorball', 'wushu', 'ninjutsu', 'underwater hockey',
-      'underwater rugby', 'ice climbing', 'speedcubing', 'obstacle course racing', 'mud run', 'tug of war', 'arm wrestling', 'footgolf', 'pickleball', 'quidditch',
-      'roller derby', 'roller skating', 'speedway', 'air racing', 'gliding', 'boomerang', 'softball', 'kite flying (competitive)', 'sandboarding', 'snowmobiling'
+    "Sports": [
+      "football", "basketball", "tennis", "swimming", "baseball", "volleyball", "hockey", "golf", "boxing", "wrestling",
+      "running", "cycling", "skiing", "surfing", "climbing", "badminton", "cricket", "rugby", "soccer", "racing",
+      "table tennis", "handball", "squash", "judo", "karate", "taekwondo", "archery", "fencing", "gymnastics", "equestrian",
+      "skateboarding", "snowboarding", "bobsledding", "luge", "biathlon", "triathlon", "pentathlon", "rowing", "canoeing", "kayaking"
     ],
-    
-    "Food" : [
-      'pizza', 'burger', 'sushi', 'pasta', 'salad', 'soup', 'sandwich', 'tacos', 'rice', 'bread',
-      'cheese', 'chicken', 'beef', 'fish', 'vegetables', 'noodles', 'curry', 'steak', 'pancakes', 'waffles',
-      'shawarma', 'hummus', 'falafel', 'dimsum', 'ramen', 'pho', 'biryani', 'naan', 'butter chicken', 'shakshuka',
-      'paella', 'empanada', 'enchilada', 'lasagna', 'risotto', 'gnocchi', 'dumplings', 'kimchi', 'bibimbap', 'ceviche',
-      'yakitori', 'teriyaki', 'satay', 'kebab', 'hotdog', 'doner kebab', 'spring roll', 'croissant', 'bagel', 'quiche',
-      'jollof rice', 'fried rice', 'ofada rice', 'egusi soup', 'ogbono soup', 'okro soup', 'vegetable soup', 'afang soup', 'edikang ikong', 'ogbono',
-      'nsala soup', 'ogbono soup', 'draw soup', 'banga soup', 'atama', 'atama soup', 'gbegiri', 'ewedu', 'efo riro', 'ayamase (ofada stew)', 'ofe nsala',
-      'ofe akwu', 'nkwobi', 'isi ewu', 'abacha', 'ugba', 'ogiri', 'ukodo (yam pepper soup)', 'yam porridge', 'beans porridge', 'ewa agoyin',
-      'moimoi', 'akara', 'suya', 'kilishi', 'asun', 'pepper soup', 'banga rice', 'tuwo shinkafa', 'tuwo masara', 'masa',
-      'fufu', 'amala', 'semo', 'eba', 'pounded yam', 'plantain', 'boiled yam', 'roasted yam', 'yam and egg', 'yam balls',
-      'banku', 'kenkey', 'fufu', 'koki', 'ndolé', 'kushari', 'injera', 'wat', 'chapati', 'matoke',
-      'meat pie', 'fish roll', 'egg roll', 'chin chin', 'puff puff', 'buns', 'scotch egg', 'sausage roll', 'doughnut', 'samosa',
-      'oats', 'pap', 'akamu', 'cereal', 'toast', 'boiled egg', 'tea', 'coffee', 'spaghetti', 'indomie',
-      'ice cream', 'cake', 'cookies', 'brownies', 'chocolate', 'cupcakes', 'banana bread', 'chin chin (sweet)', 'zobo (hibiscus drink)', 'kunu',
-      'zobo', 'kunu', 'tigernut milk', 'fura da nono', 'palm wine', 'chapman', 'coke', 'fanta', 'malt', 'smoothie',
-      'cassava', 'yam', 'cocoyam', 'sweet potato', 'potato', 'plantain', 'rice', 'corn', 'maize', 'millet'
+    "Food": [
+      "pizza", "burger", "sushi", "pasta", "salad", "soup", "sandwich", "tacos", "rice", "bread",
+      "cheese", "chicken", "beef", "fish", "vegetables", "noodles", "curry", "steak", "pancakes", "waffles",
+      "shawarma", "hummus", "falafel", "dimsum", "ramen", "pho", "biryani", "naan", "butter chicken", "shakshuka",
+      "paella", "empanada", "enchilada", "lasagna", "risotto", "gnocchi", "dumplings", "kimchi", "bibimbap", "ceviche"
     ],
-    // "Animals": ['lion', 'tiger', 'elephant', 'giraffe', 'zebra', 'monkey', 'panda', 'koala', 'kangaroo', 'dolphin'],
-    // "Countries": ['france', 'japan', 'brazil', 'canada', 'australia', 'germany', 'italy', 'spain', 'mexico', 'india'],
-    // "Food": ['pizza', 'burger', 'sushi', 'pasta', 'salad', 'soup', 'sandwich', 'tacos', 'rice', 'bread'],
-    // "Sports": ['football', 'basketball', 'tennis', 'swimming', 'baseball', 'volleyball', 'hockey', 'golf', 'boxing', 'wrestling'],
     "Movies": [
-      'avatar', 'titanic', 'inception', 'matrix', 'gladiator', 'jaws', 'rocky', 'alien', 'batman', 'superman',
-      'the godfather', 'the godfather part ii', 'the dark knight', 'pulp fiction', 'fight club', 'forrest gump', 'interstellar', 'the shawshank redemption', 'the prestige', 'django unchained',
-      'avengers: endgame', 'avengers: infinity war', 'iron man', 'captain america: civil war', 'thor: ragnarok', 'black panther', 'spider-man: no way home', 'doctor strange', 'guardians of the galaxy', 'ant-man',
-      'frozen', 'frozen ii', 'moana', 'encanto', 'zootopia', 'tangled', 'beauty and the beast', 'aladdin', 'the lion king', 'mulan',
-      'toy story', 'toy story 2', 'toy story 3', 'toy story 4', 'inside out', 'soul', 'up', 'coco', 'ratatouille', 'finding nemo',
-      'finding dory', 'cars', 'cars 2', 'cars 3', 'the incredibles', 'the incredibles 2', 'monsters inc', 'monsters university', 'brave', 'turning red',
-      'shrek', 'shrek 2', 'shrek the third', 'shrek forever after', 'madagascar', 'madagascar 2', 'madagascar 3', 'kung fu panda', 'kung fu panda 2', 'kung fu panda 3',
-      'how to train your dragon', 'how to train your dragon 2', 'how to train your dragon: the hidden world', 'despicable me', 'despicable me 2', 'despicable me 3', 'minions', 'the secret life of pets', 'sing', 'the croods',
-      'the lego movie', 'the lego batman movie', 'the lego ninjago movie', 'hotel transylvania', 'hotel transylvania 2', 'hotel transylvania 3', 'hotel transylvania 4', 'cloudy with a chance of meatballs', 'cloudy with a chance of meatballs 2', 'rio',
-      'rio 2', 'ice age', 'ice age 2', 'ice age 3', 'ice age 4', 'ice age 5', 'the peanuts movie', 'smurfs', 'smurfs 2', 'smurfs: the lost village',
-      'alita: battle angel', 'ready player one', 'the hunger games', 'catching fire', 'mockingjay part 1', 'mockingjay part 2', 'maze runner', 'maze runner: scorched trials', 'maze runner: death cure', 'twilight',
-      'new moon', 'eclipse', 'breaking dawn part 1', 'breaking dawn part 2', 'divergent', 'insurgent', 'allegiant', 'the fault in our stars', 'love rosie', 'me before you',
-      'a walk to remember', 'the notebook', 'dear john', 'the vow', 'safe haven', 'five feet apart', 'to all the boys i’ve loved before', 'the kissing booth', 'the kissing booth 2', 'the kissing booth 3',
-      'after', 'after we collided', 'after we fell', 'after ever happy', '365 days', 'through my window', 'purple hearts', 'chemical hearts', 'midnight sun', 'everything everything',
-      'the great gatsby', 'la la land', 'a star is born', 'whiplash', 'the pianist', 'bohemian rhapsody', 'elvis', 'rocketman', 'tick tick boom', 'les miserables',
-      'cats', 'mamma mia', 'mamma mia 2', 'dreamgirls', 'high school musical', 'high school musical 2', 'high school musical 3', 'camp rock', 'the greatest showman', 'grease',
-      'the sound of music', 'mary poppins', 'chitty chitty bang bang', 'enchanted', 'cinderella', 'snow white', 'sleeping beauty', 'peter pan', 'pinocchio', 'bambi',
-      'dumbo', 'lady and the tramp', '101 dalmatians', 'the jungle book', 'robin hood', 'the fox and the hound', 'the black cauldron', 'the little mermaid', 'beauty and the beast (1991)', 'aladdin (1992)',
-      'pocahontas', 'the hunchback of notre dame', 'hercules', 'tarzan', 'atlantis: the lost empire', 'treasure planet', 'brother bear', 'home on the range', 'chicken little', 'meet the robinsons',
-      'bolt', 'princess and the frog', 'wreck-it ralph', 'ralph breaks the internet', 'big hero 6', 'strange world', 'wish', 'elemental', 'lightyear', 'onward',
-      'braveheart', 'lincoln', 'the king’s speech', 'darkest hour', 'the imitation game', 'hidden figures', '12 years a slave', 'schindler’s list', 'saving private ryan', 'hacksaw ridge',
-      'dunkirk', '1917', 'american sniper', 'zero dark thirty', 'black hawk down', 'platoon', 'full metal jacket', 'apocalypse now', 'born on the fourth of july', 'jarhead',
-      'troy', '300', 'immortals', 'clash of the titans', 'wrath of the titans', 'percy jackson and the olympians', 'wrath of the titans', 'eragon', 'narnia: the lion the witch and the wardrobe', 'narnia: prince caspian',
-      'narnia: voyage of the dawn treader', 'the golden compass', 'his dark materials', 'fantastic beasts', 'fantastic beasts: the crimes of grindelwald', 'fantastic beasts: the secrets of dumbledore', 'harry potter and the sorcerer’s stone', 'chamber of secrets', 'prisoner of azkaban', 'goblet of fire',
-      'order of the phoenix', 'half-blood prince', 'deathly hallows part 1', 'deathly hallows part 2', 'it', 'it chapter two', 'the conjuring', 'the conjuring 2', 'the nun', 'annabelle',
-      'annabelle: creation', 'annabelle comes home', 'insidious', 'insidious: chapter 2', 'insidious: the last key', 'sinister', 'the babadook', 'hereditary', 'midsommar', 'the ring',
-      'the grudge', 'paranormal activity', 'the blair witch project', 'saw', 'saw ii', 'saw iii', 'saw iv', 'saw v', 'saw vi', 'spiral',
-      'get out', 'us', 'nope', 'candyman', 'smile', 'barbarian', 'x', 'pearl', 'a quiet place', 'a quiet place part ii',
-      'old', 'the visit', 'glass', 'split', 'the sixth sense', 'signs', 'the village', 'lady in the water', 'the happening', 'knock at the cabin',
-      'oppenheimer', 'barbie', 'tenet', 'dune', 'dune part two', 'blade runner 2049', 'arrival', 'gravity', 'the martian', 'ex machina',
-      'moon', 'sunshine', 'contact', 'ad astra', 'passengers', 'lucy', 'limitless', 'the island', 'i robot', 'chappie',
-      'district 9', 'e.t.', 'close encounters of the third kind', 'war of the worlds', 'independence day', 'men in black', 'men in black 2', 'men in black 3', 'edge of tomorrow', 'oblivion'
-    ],
-    "Technology": [
-      'computer', 'smartphone', 'internet', 'software', 'hardware', 'network', 'database', 'programming', 'algorithm', 'artificial',
-      'machine learning', 'deep learning', 'neural network', 'cloud computing', 'cybersecurity', 'data science', 'data mining', 'data visualization', 'big data', 'iot',
-      'blockchain', 'cryptocurrency', 'bitcoin', 'ethereum', 'smart contract', 'virtual reality', 'augmented reality', 'mixed reality', 'digital twin', 'edge computing',
-      'quantum computing', '5g', '6g', 'wi-fi', 'ethernet', 'router', 'switch', 'firewall', 'vpn', 'encryption',
-      'biometrics', 'facial recognition', 'fingerprint scanner', 'voice recognition', 'natural language processing', 'chatbot', 'robotics', 'automation', 'raspberry pi', 'arduino',
-      'linux', 'windows', 'macos', 'android', 'ios', 'html', 'css', 'javascript', 'python', 'java',
-      'c', 'c++', 'c#', 'php', 'ruby', 'go', 'swift', 'kotlin', 'r', 'sql',
-      'nosql', 'mongodb', 'postgresql', 'mysql', 'firebase', 'oracle', 'docker', 'kubernetes', 'jenkins', 'github',
-      'gitlab', 'bitbucket', 'ci/cd', 'api', 'rest', 'graphql', 'json', 'xml', 'yaml', 'http',
-      'https', 'tcp/ip', 'udp', 'ip address', 'mac address', 'dns', 'dhcp', 'ssl', 'tls', 'ssh',
-      'ftp', 'sftp', 'smtp', 'imap', 'pop3', 'email', 'browser', 'chrome', 'firefox', 'edge',
-      'safari', 'tor', 'brave', 'search engine', 'google', 'bing', 'duckduckgo', 'web app', 'mobile app', 'desktop app',
-      'frontend', 'backend', 'full stack', 'react', 'angular', 'vue', 'next.js', 'nuxt.js', 'svelte', 'jquery',
-      'bootstrap', 'tailwind css', 'material ui', 'redux', 'react native', 'flutter', 'ionic', 'capacitor', 'cordova', 'xamarin',
-      'visual studio', 'vscode', 'android studio', 'intellij idea', 'pycharm', 'jupyter notebook', 'anaconda', 'spyder', 'terminal', 'command line',
-      'bash', 'powershell', 'zsh', 'shell scripting', 'cron job', 'virtual machine', 'vmware', 'virtualbox', 'hyper-v', 'cloudflare',
-      'aws', 'azure', 'google cloud', 'heroku', 'netlify', 'vercel', 'digital ocean', 'linode', 'cloud functions', 'lambda',
-      'firebase functions', 'firestore', 'realtime database', 'cloud storage', 'cdn', 'load balancer', 'reverse proxy', 'nginx', 'apache', 'lighttpd',
-      'sql injection', 'xss', 'csrf', 'brute force', 'ddos', 'malware', 'ransomware', 'trojan', 'spyware', 'phishing',
-      'firewall rules', 'intrusion detection', 'antivirus', 'endpoint protection', 'zero trust', 'threat intelligence', 'siem', 'soc', 'red team', 'blue team',
-      'penetration testing', 'ethical hacking', 'bug bounty', 'cyber forensics', 'hashing', 'sha256', 'md5', 'bcrypt', 'jwt', 'oauth',
-      'sso', 'saml', 'multi-factor authentication', 'otp', 'captcha', 'honeypot', 'sandbox', 'devops', 'devsecops', 'sre',
-      'agile', 'scrum', 'kanban', 'jira', 'confluence', 'trello', 'notion', 'monday.com', 'slack', 'zoom',
-      'teams', 'webex', 'figma', 'adobe xd', 'photoshop', 'illustrator', 'after effects', 'premiere pro', 'canva', 'corel draw',
-      '3d printing', 'cad', 'solidworks', 'autocad', 'blender', 'unity', 'unreal engine', 'godot', 'game dev', 'metaverse',
-      'token', 'nft', 'wallet', 'ledger', 'metamask', 'smart home', 'home assistant', 'alexa', 'google assistant', 'siri',
-      'wearable', 'smartwatch', 'fitness tracker', 'drone', 'autonomous vehicle', 'self-driving car', 'tesla', 'gps', 'lidar', 'radar',
-      'sensor', 'actuator', 'api gateway', 'microservices', 'monolith', 'serverless', 'graphql playground', 'postman', 'swagger', 'openapi',
-      'uml', 'data model', 'er diagram', 'flowchart', 'sequence diagram', 'wireframe', 'mockup', 'prototype', 'product design', 'ui design',
-      'ux design', 'usability testing', 'a/b testing', 'analytics', 'google analytics', 'mixpanel', 'segment', 'data lake', 'data warehouse', 'etl',
-      'elt', 'airflow', 'dbt', 'tableau', 'power bi', 'looker', 'superset', 'redshift', 'snowflake', 'bigquery',
-      'spark', 'hadoop', 'hive', 'pig', 'hbase', 'kafka', 'pulsar', 'flink', 'storm', 'beam',
-      'tensorflow', 'keras', 'pytorch', 'scikit-learn', 'xgboost', 'lightgbm', 'catboost', 'mlflow', 'dvc', 'model serving',
-      'mlops', 'cv', 'computer vision', 'image recognition', 'object detection', 'ocr', 'nlp', 'bert', 'gpt', 'transformer',
-      'tokenization', 'stemming', 'lemmatization', 'sentiment analysis', 'text classification', 'language modeling', 'text-to-speech', 'speech-to-text', 'voice bot', 'chatgpt',
-      'openai', 'anthropic', 'cohere', 'huggingface', 'deepmind', 'stability ai', 'generative ai', 'ai ethics', 'bias in ai', 'explainable ai',
-      'recommender system', 'collaborative filtering', 'content-based filtering', 'ranking algorithm', 'search engine optimization', 'seo', 'sem', 'adsense', 'admob', 'facebook pixel',
-      'ecommerce', 'shopify', 'woocommerce', 'magento', 'bigcommerce', 'dropshipping', 'payment gateway', 'stripe', 'paypal', 'flutterwave',
-      'paystack', 'coinbase commerce', 'smart grid', 'digital currency', 'central bank digital currency', 'edtech', 'healthtech', 'agritech', 'fintech', 'proptech',
-      'legaltech', 'govtech', 'insurtech', 'martech', 'medtech', 'greentech', 'clean energy', 'solar panel', 'wind turbine', 'battery storage'
-    ],
-    "Nature": [
-      'mountain', 'ocean', 'forest', 'desert', 'river', 'lake', 'volcano', 'beach', 'canyon', 'valley',
-      'hill', 'plateau', 'plain', 'glacier', 'waterfall', 'island', 'archipelago', 'peninsula', 'bay', 'lagoon',
-      'delta', 'stream', 'creek', 'swamp', 'marsh', 'wetland', 'coral reef', 'atoll', 'gulf', 'cape',
-      'cliff', 'ridge', 'peak', 'range', 'basin', 'tundra', 'savanna', 'prairie', 'rainforest', 'jungle',
-      'steppe', 'badlands', 'butte', 'mesa', 'dune', 'geyser', 'hot spring', 'sinkhole', 'karst', 'cave',
-      'stalactite', 'stalagmite', 'lava field', 'crater', 'moraine', 'floodplain', 'mudflat', 'shoal', 'sandbar', 'terrace',
-      'fjord', 'iceberg', 'permafrost', 'tide pool', 'rapids', 'glacial lake', 'salt flat', 'salt lake', 'thermal vent', 'estuary',
-      'boreal forest', 'coniferous forest', 'deciduous forest', 'temperate forest', 'alpine meadow', 'rainshadow', 'chaparral', 'heathland', 'bog', 'fen',
-      'fenland', 'grove', 'woodland', 'thicket', 'copse', 'hedgerow', 'pasture', 'meadow', 'grassland', 'scrubland',
-      'monsoon', 'cyclone', 'hurricane', 'typhoon', 'storm', 'blizzard', 'thunderstorm', 'hailstorm', 'sandstorm', 'dust storm',
-      'whirlwind', 'tornado', 'avalanche', 'landslide', 'rockslide', 'tsunami', 'earthquake', 'aftershock', 'tremor', 'wildfire',
-      'lightning', 'thunder', 'fog', 'mist', 'dew', 'frost', 'snow', 'rain', 'drizzle', 'sleet',
-      'hail', 'cloud', 'cirrus cloud', 'cumulus cloud', 'stratus cloud', 'nimbus cloud', 'sunshine', 'sunset', 'sunrise', 'moonrise',
-      'moonset', 'eclipse', 'solar eclipse', 'lunar eclipse', 'rainbow', 'aurora', 'northern lights', 'southern lights', 'mirage', 'halo',
-      'glow', 'ember', 'fire', 'smoke', 'ash', 'pumice', 'obsidian', 'granite', 'limestone', 'sandstone',
-      'shale', 'slate', 'basalt', 'coal', 'peat', 'soil', 'topsoil', 'silt', 'clay', 'loam',
-      'earth', 'humus', 'rock', 'mineral', 'crystal', 'quartz', 'diamond', 'gold', 'silver', 'copper',
-      'iron', 'zinc', 'nickel', 'platinum', 'mercury', 'uranium', 'sulfur', 'graphite', 'mica', 'jade',
-      'emerald', 'ruby', 'sapphire', 'amethyst', 'opal', 'garnet', 'peridot', 'aquamarine', 'tourmaline', 'topaz',
-      'flora', 'fauna', 'tree', 'shrub', 'bush', 'vine', 'fern', 'moss', 'grass', 'algae',
-      'lily', 'rose', 'sunflower', 'daisy', 'tulip', 'orchid', 'lotus', 'hibiscus', 'jasmine', 'lavender',
-      'oak', 'maple', 'pine', 'cedar', 'willow', 'bamboo', 'sequoia', 'birch', 'elm', 'spruce',
-      'cactus', 'succulent', 'baobab', 'acacia', 'eucalyptus', 'olive tree', 'banana tree', 'coconut tree', 'mango tree', 'apple tree',
-      'pollination', 'seed', 'fruit', 'nut', 'root', 'stem', 'leaf', 'bark', 'sap', 'resin',
-      'fungus', 'mushroom', 'lichen', 'coral', 'plankton', 'krill', 'insect', 'bee', 'butterfly', 'dragonfly',
-      'ant', 'termite', 'grasshopper', 'cricket', 'beetle', 'mosquito', 'fly', 'wasp', 'hornet', 'moth',
-      'bird', 'eagle', 'hawk', 'falcon', 'owl', 'sparrow', 'pigeon', 'parrot', 'toucan', 'woodpecker',
-      'penguin', 'albatross', 'swan', 'goose', 'duck', 'heron', 'crane', 'flamingo', 'stork', 'vulture',
-      'bat', 'mammal', 'reptile', 'amphibian', 'fish', 'shark', 'whale', 'dolphin', 'porpoise', 'seal',
-      'sea lion', 'walrus', 'otter', 'beaver', 'platypus', 'frog', 'toad', 'salamander', 'newt', 'turtle',
-      'tortoise', 'lizard', 'gecko', 'chameleon', 'snake', 'python', 'cobra', 'viper', 'anole', 'iguana',
-      'lion', 'tiger', 'leopard', 'cheetah', 'jaguar', 'lynx', 'bobcat', 'wolf', 'fox', 'bear',
-      'grizzly', 'polar bear', 'panda', 'koala', 'kangaroo', 'wombat', 'camel', 'horse', 'zebra', 'giraffe',
-      'elephant', 'rhino', 'hippopotamus', 'buffalo', 'bison', 'deer', 'moose', 'antelope', 'gazelle', 'boar',
-      'rabbit', 'hare', 'squirrel', 'chipmunk', 'mouse', 'rat', 'porcupine', 'hedgehog', 'armadillo', 'raccoon',
-      'skunk', 'badger', 'mongoose', 'meerkat', 'chimpanzee', 'gorilla', 'orangutan', 'baboon', 'lemur', 'sloth',
-      'echidna', 'pangolin', 'tapir', 'okapi', 'manatee', 'dugong', 'sea cucumber', 'sea urchin', 'jellyfish', 'octopus',
-      'squid', 'crab', 'lobster', 'shrimp', 'clam', 'mussel', 'scallop', 'oyster', 'starfish', 'sand dollar',
-      'pebble', 'boulder', 'driftwood', 'tide', 'current', 'wave', 'ripple', 'foam', 'splash', 'spray',
-      'fog bank', 'cloudburst', 'downpour', 'shower', 'rainstorm', 'snowstorm', 'ice storm', 'wind gust', 'breeze', 'gale',
-      'calm', 'stillness', 'sunbeam', 'moonbeam', 'twilight', 'dusk', 'dawn', 'nightfall', 'starlight', 'moonlight',
-      'equinox', 'solstice', 'gravity', 'magnetism', 'photosynthesis', 'erosion', 'weathering', 'deposition', 'evaporation', 'condensation',
-      'precipitation', 'cycle', 'ecosystem', 'habitat', 'biodiversity', 'carbon cycle', 'nitrogen cycle', 'ozone', 'biosphere', 'stratosphere'
-    ],
-    "History": ['egypt', 'rome', 'greece', 'medieval', 'renaissance', 'revolution', 'empire', 'kingdom', 'dynasty', 'civilization'],
-    // "Colors": ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'brown', 'black', 'white'],
-    // "Fruits": ['apple', 'banana', 'orange', 'grape', 'strawberry', 'mango', 'pineapple', 'watermelon', 'peach', 'cherry']
+      "avatar", "titanic", "inception", "matrix", "gladiator", "jaws", "rocky", "alien", "batman", "superman",
+      "avengers", "frozen", "shrek", "finding nemo", "toy story", "cars", "up", "coco", "moana", "zootopia"
+    ]
   };
 
-
-
-
-
+  // Common English words for WordChain mode (simplified list)
+  const englishWords = [
+    "about", "above", "abuse", "actor", "acute", "admit", "adopt", "adult", "after", "again", "agent", "agree",
+    "ahead", "alarm", "album", "alert", "alien", "align", "alike", "alive", "allow", "alone", "along", "alter",
+    "amber", "amend", "among", "anger", "angle", "angry", "apart", "apple", "apply", "arena", "argue", "arise",
+    "array", "arrow", "aside", "asset", "avoid", "awake", "award", "aware", "badly", "baker", "bases", "basic",
+    "beach", "began", "begin", "being", "below", "bench", "billy", "birth", "black", "blame", "blind", "block",
+    "blood", "board", "boast", "bobby", "boost", "booth", "bound", "brain", "brand", "brass", "brave", "bread",
+    "break", "breed", "brief", "bring", "broad", "broke", "brown", "build", "built", "buyer", "cable", "cake",
+    "calm", "came", "canal", "candy", "cape", "card", "care", "carry", "case", "cash", "cast", "catch",
+    "cause", "chain", "chair", "chaos", "charm", "chart", "chase", "cheap", "check", "cheese", "chess", "chest",
+    "child", "china", "chose", "civil", "claim", "class", "clean", "clear", "click", "climb", "clock", "close",
+    "cloud", "coach", "coast", "could", "count", "court", "cover", "craft", "crash", "crazy", "cream", "crime",
+    "cross", "crowd", "crown", "crude", "curve", "cycle", "daily", "damage", "dance", "date", "deal", "death",
+    "debt", "delay", "depth", "doing", "doubt", "dozen", "draft", "drama", "drank", "draw", "dream", "dress",
+    "drill", "drink", "drive", "drove", "dying", "eager", "early", "earth", "eight", "elite", "empty", "enemy",
+    "enjoy", "enter", "entry", "equal", "error", "event", "every", "exact", "exist", "extra", "faith", "false",
+    "fault", "fiber", "field", "fifth", "fifty", "fight", "final", "first", "fixed", "flash", "fleet", "floor",
+    "fluid", "focus", "force", "forth", "forty", "forum", "found", "frame", "frank", "fraud", "fresh", "front",
+    "fruit", "fully", "funny", "giant", "given", "glass", "globe", "going", "grace", "grade", "grand", "grant",
+    "grass", "grave", "great", "green", "gross", "group", "grown", "guard", "guess", "guest", "guide", "happy",
+    "harry", "heart", "heavy", "hence", "henry", "horse", "hotel", "house", "human", "ideal", "image", "index",
+    "inner", "input", "issue", "japan", "jimmy", "joint", "jones", "judge", "known", "label", "large", "laser",
+    "later", "laugh", "layer", "learn", "lease", "least", "leave", "legal", "level", "lewis", "light", "limit",
+    "links", "lives", "local", "loose", "lower", "lucky", "lunch", "lying", "magic", "major", "maker", "march",
+    "maria", "match", "maybe", "mayor", "meant", "media", "metal", "might", "minor", "minus", "mixed", "model",
+    "money", "month", "moral", "motor", "mount", "mouse", "mouth", "moved", "movie", "music", "needs", "never",
+    "newly", "night", "noise", "north", "noted", "novel", "nurse", "occur", "ocean", "offer", "often", "order",
+    "other", "ought", "paint", "panel", "paper", "party", "peace", "peter", "phase", "phone", "photo", "piano",
+    "piece", "pilot", "pitch", "place", "plain", "plane", "plant", "plate", "point", "pound", "power", "press",
+    "price", "pride", "prime", "print", "prior", "prize", "proof", "proud", "prove", "queen", "quick", "quiet",
+    "quite", "radio", "raise", "range", "rapid", "ratio", "reach", "ready", "realm", "rebel", "refer", "relax",
+    "repay", "reply", "right", "rigid", "rival", "river", "robin", "roger", "roman", "rough", "round", "route",
+    "royal", "rural", "scale", "scene", "scope", "score", "sense", "serve", "seven", "shall", "shape", "share",
+    "sharp", "sheet", "shelf", "shell", "shift", "shine", "shirt", "shock", "shoot", "short", "shown", "sight",
+    "silly", "since", "sixth", "sixty", "sized", "skill", "sleep", "slide", "small", "smart", "smile", "smith",
+    "smoke", "snake", "snow", "social", "solid", "solve", "sorry", "sound", "south", "space", "spare", "speak",
+    "speed", "spend", "spent", "split", "spoke", "sport", "staff", "stage", "stake", "stand", "start", "state",
+    "steam", "steel", "steep", "steer", "stem", "step", "stick", "still", "stock", "stone", "stood", "store",
+    "storm", "story", "strip", "stuck", "study", "stuff", "style", "sugar", "suite", "super", "sweet", "table",
+    "taken", "taste", "taxes", "teach", "teeth", "terry", "thank", "theft", "their", "theme", "there", "these",
+    "thick", "thing", "think", "third", "those", "three", "threw", "throw", "thumb", "tiger", "tight", "timer",
+    "tired", "title", "today", "topic", "total", "touch", "tough", "tower", "track", "trade", "train", "treat",
+    "trend", "trial", "tribe", "trick", "tried", "tries", "truck", "truly", "trunk", "trust", "truth", "twice",
+    "uncle", "under", "undue", "union", "unity", "until", "upper", "upset", "urban", "usage", "usual", "valid",
+    "value", "video", "virus", "visit", "vital", "vocal", "voice", "waste", "watch", "water", "wheel", "where",
+    "which", "while", "white", "whole", "whose", "woman", "women", "world", "worry", "worse", "worst", "worth",
+    "would", "write", "wrong", "wrote", "young", "youth"
+  ];
 
   useEffect(() => {
     fetchGameSession();
@@ -454,17 +289,61 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
     }
   };
 
+  const isValidWord = (word: string): boolean => {
+    if (gameSession?.game_mode === "wordchain") {
+      // For word chain, check if it's a valid English word
+      return englishWords.includes(word.toLowerCase());
+    } else {
+      // For category mode, check if it's in the category
+      const validWords = wordDatabase[gameSession?.category || ""] || [];
+      return validWords.includes(word.toLowerCase());
+    }
+  };
+
+  const isValidChain = (word: string): boolean => {
+    if (gameSession?.game_mode !== "wordchain") {
+      return true; // Category mode doesn't need chain validation
+    }
+    
+    if (gameSession.words_used.length === 0) {
+      return true; // First word can be anything
+    }
+    
+    const lastWord = gameSession.words_used[gameSession.words_used.length - 1];
+    const lastLetter = lastWord[lastWord.length - 1].toLowerCase();
+    const firstLetter = word[0].toLowerCase();
+    
+    return lastLetter === firstLetter;
+  };
+
   const submitWord = async () => {
     if (!currentWord.trim() || !gameSession) return;
 
     const word = currentWord.toLowerCase().trim();
-    const validWords = wordDatabase[gameSession.category] || [];
     
-    // Check if word is valid
-    if (!validWords.includes(word)) {
+    // Check if word is valid for the game mode
+    if (!isValidWord(word)) {
+      const errorMsg = gameSession.game_mode === "wordchain" 
+        ? `"${currentWord}" is not a valid English word`
+        : `"${currentWord}" is not a valid ${gameSession.category.toLowerCase()}`;
+      
       toast({
         title: "Invalid Word!",
-        description: `"${currentWord}" is not a valid ${gameSession.category.toLowerCase()}`,
+        description: errorMsg,
+        variant: "destructive",
+      });
+      setCurrentWord("");
+      return;
+    }
+
+    // Check word chain for WordChain mode
+    if (!isValidChain(word)) {
+      const lastWord = gameSession.words_used[gameSession.words_used.length - 1];
+      const expectedLetter = lastWord[lastWord.length - 1].toUpperCase();
+      
+      toast({
+        title: "Invalid Chain!",
+        description: `Word must start with "${expectedLetter}"`,
         variant: "destructive",
       });
       setCurrentWord("");
@@ -649,6 +528,25 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
   const opponent = gameSession.player1_id === currentUserId ? gameSession.player2 : gameSession.player1;
   const myScore = gameSession.player1_id === currentUserId ? gameSession.player1_score : gameSession.player2_score;
   const opponentScore = gameSession.player1_id === currentUserId ? gameSession.player2_score : gameSession.player1_score;
+  
+  const getGameTitle = () => {
+    if (gameSession.game_mode === "wordchain") {
+      return "Word Chain Battle";
+    }
+    return `${gameSession.category} Battle`;
+  };
+
+  const getPlaceholder = () => {
+    if (gameSession.game_mode === "wordchain") {
+      if (gameSession.words_used.length === 0) {
+        return "Enter any English word...";
+      }
+      const lastWord = gameSession.words_used[gameSession.words_used.length - 1];
+      const nextLetter = lastWord[lastWord.length - 1].toUpperCase();
+      return `Enter a word starting with "${nextLetter}"...`;
+    }
+    return `Enter a ${gameSession.category.toLowerCase().slice(0, -1)}...`;
+  };
 
   // Waiting room
   if (gameSession.status === 'waiting') {
@@ -664,7 +562,10 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
           <CardContent className="text-center space-y-4">
             <div className="text-6xl animate-pulse">⏳</div>
             <div className="space-y-2">
-              <p><strong>Category:</strong> {gameSession.category}</p>
+              <p><strong>Game Mode:</strong> {gameSession.game_mode === "wordchain" ? "Word Chain" : "Category Naming"}</p>
+              {gameSession.game_mode !== "wordchain" && (
+                <p><strong>Category:</strong> {gameSession.category}</p>
+              )}
               <p><strong>Opponent:</strong> {opponent.display_name || opponent.username}</p>
             </div>
             <Button variant="outline" onClick={() => navigate("/dashboard")}>
@@ -684,7 +585,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
         <Card className="bg-gradient-card border-primary/40 max-w-md mx-auto">
           <CardHeader className="text-center">
             <CardTitle className="text-3xl font-bold gradient-text">
-              {gameSession.category} Battle
+              {getGameTitle()}
             </CardTitle>
             <p className="text-muted-foreground">Get ready!</p>
           </CardHeader>
@@ -737,7 +638,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
                 className="flex-1"
               >
                 <Home className="h-4 w-4 mr-2" />
-                New Category
+                New Game
               </Button>
             </div>
             <Button 
@@ -768,7 +669,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
             <span className="hidden sm:inline">Back</span>
           </Button>
           <h1 className="text-lg sm:text-2xl md:text-3xl font-bold gradient-text text-center">
-            {gameSession?.category} Battle
+            {getGameTitle()}
           </h1>
           <div className="w-16 sm:w-24" />
         </div>
@@ -797,7 +698,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
             <CardContent className="p-2 sm:p-4 text-center">
               <Trophy className="h-4 sm:h-6 w-4 sm:w-6 text-green-500 mx-auto mb-1 sm:mb-2" />
               <div className="text-sm sm:text-xl font-bold text-foreground">
-                {gameSession?.player1_id === currentUserId ? gameSession?.player1_score : gameSession?.player2_score}
+                {myScore}
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground">Your Score</p>
             </CardContent>
@@ -807,7 +708,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
             <CardContent className="p-2 sm:p-4 text-center">
               <Users className="h-4 sm:h-6 w-4 sm:w-6 text-red-500 mx-auto mb-1 sm:mb-2" />
               <div className="text-sm sm:text-xl font-bold text-foreground">
-                {gameSession?.player1_id === currentUserId ? gameSession?.player2_score : gameSession?.player1_score}
+                {opponentScore}
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground">Opponent</p>
             </CardContent>
@@ -818,10 +719,10 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
         <Card className="bg-gradient-card border-primary/40 mb-4 sm:mb-6">
           <CardHeader className="pb-2 sm:pb-4">
             <CardTitle className="text-center flex items-center justify-center gap-2 text-sm sm:text-base">
-              {gameSession?.current_turn === currentUserId ? (
+              {isMyTurn ? (
                 <>
                   <Crown className="h-4 sm:h-5 w-4 sm:w-5 text-yellow-500" />
-                  <span className="text-xs sm:text-base">Your Turn - Name a {gameSession?.category.toLowerCase().slice(0, -1)}!</span>
+                  <span className="text-xs sm:text-base">Your Turn!</span>
                 </>
               ) : (
                 <>
@@ -837,22 +738,22 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
                 ref={inputRef}
                 value={currentWord}
                 onChange={(e) => setCurrentWord(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && gameSession?.current_turn === currentUserId && submitWord()}
-                placeholder={`Enter a ${gameSession?.category.toLowerCase().slice(0, -1)}...`}
+                onKeyPress={(e) => e.key === 'Enter' && isMyTurn && submitWord()}
+                placeholder={getPlaceholder()}
                 className="text-sm sm:text-lg py-3 sm:py-6 bg-input border-border focus:border-primary"
-                disabled={!gameActive || gameSession?.current_turn !== currentUserId}
+                disabled={!gameActive || !isMyTurn}
               />
               <Button 
                 onClick={submitWord}
-                disabled={!gameActive || gameSession?.current_turn !== currentUserId || !currentWord.trim()}
+                disabled={!gameActive || !isMyTurn || !currentWord.trim()}
                 className="px-4 sm:px-8 py-3 sm:py-6 bg-gradient-battle hover:opacity-90 text-sm sm:text-base whitespace-nowrap"
               >
                 Submit
               </Button>
             </div>
             <div className="text-center">
-              <Badge variant={gameSession?.current_turn === currentUserId ? "default" : "secondary"} className="text-xs sm:text-sm">
-                {gameSession?.current_turn === currentUserId ? "YOUR TURN" : "OPPONENT'S TURN"}
+              <Badge variant={isMyTurn ? "default" : "secondary"} className="text-xs sm:text-sm">
+                {isMyTurn ? "YOUR TURN" : "OPPONENT'S TURN"}
               </Badge>
             </div>
           </CardContent>

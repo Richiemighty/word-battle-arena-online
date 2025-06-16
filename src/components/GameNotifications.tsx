@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Gamepad2, CheckCircle, XCircle } from "lucide-react";
+import { Gamepad2, CheckCircle, XCircle, Target, Link } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -15,11 +15,15 @@ interface GameInvitation {
   receiver_id: string;
   game_session_id: string;
   category: string;
+  game_mode?: string;
   status: string | null;
   created_at: string;
   sender?: {
     username: string;
     display_name: string;
+  };
+  game_session?: {
+    status: string;
   };
 }
 
@@ -44,7 +48,6 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
         { event: '*', schema: 'public', table: 'game_invitations' },
         (payload) => {
           if (payload.new && typeof payload.new === 'object' && 'receiver_id' in payload.new && payload.new.receiver_id === currentUserId) {
-            // Fetch the updated list of invitations
             fetchInvitations();
             playSound('notification');
             toast({
@@ -71,6 +74,9 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
           sender:profiles!game_invitations_sender_id_fkey (
             username,
             display_name
+          ),
+          game_session:game_sessions!game_invitations_game_session_id_fkey (
+            status
           )
         `)
         .eq("receiver_id", currentUserId)
@@ -79,7 +85,24 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
 
       if (error) throw error;
 
-      setInvitations(data || []);
+      // Filter out invitations where game session is cancelled or completed
+      const activeInvitations = (data || []).filter(invitation => 
+        invitation.game_session?.status === 'waiting'
+      );
+
+      // Clean up cancelled invitations automatically
+      const cancelledInvitations = (data || []).filter(invitation => 
+        invitation.game_session?.status !== 'waiting'
+      );
+
+      if (cancelledInvitations.length > 0) {
+        await supabase
+          .from("game_invitations")
+          .update({ status: "cancelled" })
+          .in("id", cancelledInvitations.map(inv => inv.id));
+      }
+
+      setInvitations(activeInvitations);
     } catch (error) {
       console.error("Error fetching game invitations:", error);
       toast({
@@ -95,6 +118,24 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
   const acceptInvitation = async (invitation: GameInvitation) => {
     try {
       await playSound('click');
+
+      // Check if game session is still active
+      const { data: gameSession, error: gameCheckError } = await supabase
+        .from("game_sessions")
+        .select("status")
+        .eq("id", invitation.game_session_id)
+        .single();
+
+      if (gameCheckError || gameSession?.status !== 'waiting') {
+        toast({
+          title: "Invitation Expired",
+          description: "This game invitation is no longer active",
+          variant: "destructive",
+        });
+        fetchInvitations(); // Refresh to remove expired invitations
+        return;
+      }
+
       // Accept the invitation
       const { error: acceptError } = await supabase
         .from("game_invitations")
@@ -157,6 +198,17 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
     }
   };
 
+  const getGameModeIcon = (gameMode?: string) => {
+    return gameMode === "wordchain" ? Link : Target;
+  };
+
+  const getGameModeText = (invitation: GameInvitation) => {
+    if (invitation.game_mode === "wordchain") {
+      return "Word Chain";
+    }
+    return `${invitation.category} Category`;
+  };
+
   if (loading) {
     return <div>Loading invitations...</div>;
   }
@@ -167,46 +219,50 @@ const GameNotifications = ({ currentUserId }: GameNotificationsProps) => {
 
   return (
     <div className="space-y-3 sm:space-y-4 mb-6">
-      {invitations.map((invitation) => (
-        <Card key={invitation.id} className="bg-gradient-card border-accent/40 animate-fade-in">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3 flex-1">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-battle rounded-full flex items-center justify-center">
-                  <Gamepad2 className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+      {invitations.map((invitation) => {
+        const GameModeIcon = getGameModeIcon(invitation.game_mode);
+        
+        return (
+          <Card key={invitation.id} className="bg-gradient-card border-accent/40 animate-fade-in">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-battle rounded-full flex items-center justify-center">
+                    <GameModeIcon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-foreground truncate">
+                      Game Invitation from {invitation.sender?.display_name || invitation.sender?.username}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {getGameModeText(invitation)} • {formatDistanceToNow(new Date(invitation.created_at))} ago
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm sm:text-base font-semibold text-foreground truncate">
-                    Game Invitation from {invitation.sender?.display_name || invitation.sender?.username}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    Category: {invitation.category} • {formatDistanceToNow(new Date(invitation.created_at))} ago
-                  </p>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Button
+                    size="sm"
+                    onClick={() => acceptInvitation(invitation)}
+                    className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none text-xs sm:text-sm"
+                  >
+                    <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    Accept
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => rejectInvitation(invitation.id)}
+                    className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground flex-1 sm:flex-none text-xs sm:text-sm"
+                  >
+                    <XCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    Reject
+                  </Button>
                 </div>
               </div>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <Button
-                  size="sm"
-                  onClick={() => acceptInvitation(invitation)}
-                  className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none text-xs sm:text-sm"
-                >
-                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  Accept
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => rejectInvitation(invitation.id)}
-                  className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground flex-1 sm:flex-none text-xs sm:text-sm"
-                >
-                  <XCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  Reject
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };
