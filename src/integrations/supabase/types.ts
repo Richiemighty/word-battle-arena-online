@@ -125,6 +125,7 @@ export type Database = {
           category: string
           created_at: string | null
           expires_at: string | null
+          game_mode: string | null
           game_session_id: string | null
           id: string
           receiver_id: string
@@ -135,6 +136,7 @@ export type Database = {
           category: string
           created_at?: string | null
           expires_at?: string | null
+          game_mode?: string | null
           game_session_id?: string | null
           id?: string
           receiver_id: string
@@ -145,6 +147,7 @@ export type Database = {
           category?: string
           created_at?: string | null
           expires_at?: string | null
+          game_mode?: string | null
           game_session_id?: string | null
           id?: string
           receiver_id?: string
@@ -226,10 +229,12 @@ export type Database = {
       game_sessions: {
         Row: {
           category: string
+          countdown_started_at: string | null
           created_at: string | null
           current_turn: string | null
           ended_at: string | null
           game_mode: string | null
+          game_started_at: string | null
           id: string
           max_credits: number | null
           player1_id: string | null
@@ -246,10 +251,12 @@ export type Database = {
         }
         Insert: {
           category: string
+          countdown_started_at?: string | null
           created_at?: string | null
           current_turn?: string | null
           ended_at?: string | null
           game_mode?: string | null
+          game_started_at?: string | null
           id?: string
           max_credits?: number | null
           player1_id?: string | null
@@ -266,10 +273,12 @@ export type Database = {
         }
         Update: {
           category?: string
+          countdown_started_at?: string | null
           created_at?: string | null
           current_turn?: string | null
           ended_at?: string | null
           game_mode?: string | null
+          game_started_at?: string | null
           id?: string
           max_credits?: number | null
           player1_id?: string | null
@@ -319,6 +328,11 @@ export type Database = {
         Row: {
           avatar_id: string | null
           avatar_url: string | null
+          category_credits: number | null
+          category_draws: number | null
+          category_losses: number | null
+          category_rank: string | null
+          category_wins: number | null
           created_at: string | null
           display_name: string | null
           id: string
@@ -331,10 +345,20 @@ export type Database = {
           total_losses: number | null
           total_wins: number | null
           username: string
+          wordchain_credits: number | null
+          wordchain_draws: number | null
+          wordchain_losses: number | null
+          wordchain_rank: string | null
+          wordchain_wins: number | null
         }
         Insert: {
           avatar_id?: string | null
           avatar_url?: string | null
+          category_credits?: number | null
+          category_draws?: number | null
+          category_losses?: number | null
+          category_rank?: string | null
+          category_wins?: number | null
           created_at?: string | null
           display_name?: string | null
           id: string
@@ -347,10 +371,20 @@ export type Database = {
           total_losses?: number | null
           total_wins?: number | null
           username: string
+          wordchain_credits?: number | null
+          wordchain_draws?: number | null
+          wordchain_losses?: number | null
+          wordchain_rank?: string | null
+          wordchain_wins?: number | null
         }
         Update: {
           avatar_id?: string | null
           avatar_url?: string | null
+          category_credits?: number | null
+          category_draws?: number | null
+          category_losses?: number | null
+          category_rank?: string | null
+          category_wins?: number | null
           created_at?: string | null
           display_name?: string | null
           id?: string
@@ -363,6 +397,11 @@ export type Database = {
           total_losses?: number | null
           total_wins?: number | null
           username?: string
+          wordchain_credits?: number | null
+          wordchain_draws?: number | null
+          wordchain_losses?: number | null
+          wordchain_rank?: string | null
+          wordchain_wins?: number | null
         }
         Relationships: [
           {
@@ -388,12 +427,20 @@ export type Database = {
         Returns: undefined
       }
       update_user_stats_after_game: {
-        Args: {
-          user_id: string
-          credits_earned: number
-          is_winner: boolean
-          is_draw: boolean
-        }
+        Args:
+          | {
+              user_id: string
+              credits_earned: number
+              is_winner: boolean
+              is_draw: boolean
+            }
+          | {
+              user_id: string
+              credits_earned: number
+              is_winner: boolean
+              is_draw: boolean
+              game_mode_param?: string
+            }
         Returns: undefined
       }
     }

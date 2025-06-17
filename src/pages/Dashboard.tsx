@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,8 @@ import {
   Target,
   Coins,
   User,
-  Settings
+  Settings,
+  Link
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -43,6 +45,17 @@ interface Profile {
   is_online: boolean;
   avatar_id: string | null;
   sound_enabled: boolean;
+  // New game mode specific stats
+  wordchain_wins: number;
+  wordchain_losses: number;
+  wordchain_draws: number;
+  wordchain_credits: number;
+  wordchain_rank: string;
+  category_wins: number;
+  category_losses: number;
+  category_draws: number;
+  category_credits: number;
+  category_rank: string;
 }
 
 interface Avatar {
@@ -108,7 +121,7 @@ const Dashboard = () => {
         return;
       }
 
-      // Fetch user profile with avatar
+      // Fetch user profile with avatar and game mode stats
       const { data: profileData, error } = await supabase
         .from("profiles")
         .select(`
@@ -337,13 +350,13 @@ const Dashboard = () => {
         {/* Game Notifications */}
         <GameNotifications currentUserId={profile.id} />
 
-        {/* Stats Cards - Mobile Responsive */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
+        {/* Stats Cards - Enhanced with Game Mode Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 sm:gap-4 mb-6 sm:mb-8">
           <Card className="bg-gradient-card border-green-500/40">
             <CardContent className="p-3 sm:p-6 text-center">
               <Trophy className="h-6 sm:h-8 w-6 sm:w-8 text-green-500 mx-auto mb-1 sm:mb-2" />
               <div className="text-lg sm:text-2xl font-bold text-foreground">{profile.total_wins}</div>
-              <p className="text-xs sm:text-sm text-muted-foreground">Wins</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Total Wins</p>
             </CardContent>
           </Card>
 
@@ -351,7 +364,7 @@ const Dashboard = () => {
             <CardContent className="p-3 sm:p-6 text-center">
               <Target className="h-6 sm:h-8 w-6 sm:w-8 text-red-500 mx-auto mb-1 sm:mb-2" />
               <div className="text-lg sm:text-2xl font-bold text-foreground">{profile.total_losses}</div>
-              <p className="text-xs sm:text-sm text-muted-foreground">Losses</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Total Losses</p>
             </CardContent>
           </Card>
 
@@ -359,7 +372,7 @@ const Dashboard = () => {
             <CardContent className="p-3 sm:p-6 text-center">
               <Crown className="h-6 sm:h-8 w-6 sm:w-8 text-yellow-500 mx-auto mb-1 sm:mb-2" />
               <div className="text-lg sm:text-2xl font-bold text-foreground">{profile.total_draws}</div>
-              <p className="text-xs sm:text-sm text-muted-foreground">Draws</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Total Draws</p>
             </CardContent>
           </Card>
 
@@ -367,7 +380,72 @@ const Dashboard = () => {
             <CardContent className="p-3 sm:p-6 text-center">
               <Coins className="h-6 sm:h-8 w-6 sm:w-8 text-blue-500 mx-auto mb-1 sm:mb-2" />
               <div className="text-lg sm:text-2xl font-bold text-foreground">{profile.total_credits}</div>
-              <p className="text-xs sm:text-sm text-muted-foreground">Credits</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Total Credits</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-card border-purple-500/40">
+            <CardContent className="p-3 sm:p-6 text-center">
+              <Link className="h-6 sm:h-8 w-6 sm:w-8 text-purple-500 mx-auto mb-1 sm:mb-2" />
+              <div className="text-lg sm:text-2xl font-bold text-foreground">{profile.wordchain_wins || 0}</div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Chain Wins</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-card border-orange-500/40">
+            <CardContent className="p-3 sm:p-6 text-center">
+              <Target className="h-6 sm:h-8 w-6 sm:w-8 text-orange-500 mx-auto mb-1 sm:mb-2" />
+              <div className="text-lg sm:text-2xl font-bold text-foreground">{profile.category_wins || 0}</div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Category Wins</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Game Mode Performance */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <Card className="bg-gradient-card border-purple-500/40">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Link className="h-4 w-4" />
+                Word Chain Performance
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Rank:</span>
+                <Badge variant="secondary">{profile.wordchain_rank || 'Chain Beginner'}</Badge>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Credits:</span>
+                <span className="font-bold">{profile.wordchain_credits || 0}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>W/L/D:</span>
+                <span>{profile.wordchain_wins || 0}/{profile.wordchain_losses || 0}/{profile.wordchain_draws || 0}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-card border-orange-500/40">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Target className="h-4 w-4" />
+                Category Performance
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Rank:</span>
+                <Badge variant="secondary">{profile.category_rank || 'Topic Beginner'}</Badge>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Credits:</span>
+                <span className="font-bold">{profile.category_credits || 0}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>W/L/D:</span>
+                <span>{profile.category_wins || 0}/{profile.category_losses || 0}/{profile.category_draws || 0}</span>
+              </div>
             </CardContent>
           </Card>
         </div>

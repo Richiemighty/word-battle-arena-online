@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Medal, Award, Crown } from "lucide-react";
+import { Trophy, Medal, Award, Crown, Target, Link } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface LeaderboardUser {
@@ -16,6 +16,17 @@ interface LeaderboardUser {
   total_credits: number;
   rank: string;
   is_online: boolean;
+  // New game mode specific stats
+  wordchain_wins: number;
+  wordchain_losses: number;
+  wordchain_draws: number;
+  wordchain_credits: number;
+  wordchain_rank: string;
+  category_wins: number;
+  category_losses: number;
+  category_draws: number;
+  category_credits: number;
+  category_rank: string;
 }
 
 const Leaderboard = () => {
@@ -30,7 +41,12 @@ const Leaderboard = () => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, username, display_name, total_wins, total_losses, total_draws, total_credits, rank, is_online")
+        .select(`
+          id, username, display_name, total_wins, total_losses, total_draws, 
+          total_credits, rank, is_online, wordchain_wins, wordchain_losses, 
+          wordchain_draws, wordchain_credits, wordchain_rank, category_wins, 
+          category_losses, category_draws, category_credits, category_rank
+        `)
         .order("total_credits", { ascending: false })
         .limit(50);
 
@@ -56,19 +72,28 @@ const Leaderboard = () => {
     }
   };
 
+  const getOverallLeaderboard = () => {
+    return [...users].sort((a, b) => b.total_credits - a.total_credits);
+  };
+
   const getWinsLeaderboard = () => {
     return [...users].sort((a, b) => b.total_wins - a.total_wins);
   };
 
-  const getCreditsLeaderboard = () => {
-    return [...users].sort((a, b) => b.total_credits - a.total_credits);
+  const getWordChainLeaderboard = () => {
+    return [...users].sort((a, b) => b.wordchain_credits - a.wordchain_credits);
   };
 
-  const UserRow = ({ user, position, showStat, statLabel }: {
+  const getCategoryLeaderboard = () => {
+    return [...users].sort((a, b) => b.category_credits - a.category_credits);
+  };
+
+  const UserRow = ({ user, position, showStat, statLabel, gameRank }: {
     user: LeaderboardUser;
     position: number;
     showStat: number;
     statLabel: string;
+    gameRank?: string;
   }) => (
     <div className="flex items-center justify-between p-3 sm:p-4 border border-border rounded-lg">
       <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
@@ -82,7 +107,7 @@ const Leaderboard = () => {
           <div className="min-w-0 flex-1">
             <p className="font-medium text-sm sm:text-base truncate">{user.display_name || user.username}</p>
             <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
-              <Badge variant="secondary" className="text-xs">{user.rank}</Badge>
+              <Badge variant="secondary" className="text-xs">{gameRank || user.rank}</Badge>
               <div className="flex items-center gap-1">
                 <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${user.is_online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                 <span className="text-xs">{user.is_online ? 'Online' : 'Offline'}</span>
@@ -111,21 +136,29 @@ const Leaderboard = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="credits" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="credits">Top Credits</TabsTrigger>
-            <TabsTrigger value="wins">Most Wins</TabsTrigger>
+        <Tabs defaultValue="overall" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overall" className="text-xs sm:text-sm">Overall</TabsTrigger>
+            <TabsTrigger value="wins" className="text-xs sm:text-sm">Wins</TabsTrigger>
+            <TabsTrigger value="wordchain" className="text-xs sm:text-sm">
+              <Link className="h-3 w-3 mr-1" />
+              Chain
+            </TabsTrigger>
+            <TabsTrigger value="category" className="text-xs sm:text-sm">
+              <Target className="h-3 w-3 mr-1" />
+              Category
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="credits" className="mt-4">
+          <TabsContent value="overall" className="mt-4">
             <div className="space-y-3">
-              {getCreditsLeaderboard().map((user, index) => (
+              {getOverallLeaderboard().map((user, index) => (
                 <UserRow
                   key={user.id}
                   user={user}
                   position={index + 1}
                   showStat={user.total_credits}
-                  statLabel="Credits"
+                  statLabel="Total Credits"
                 />
               ))}
             </div>
@@ -139,7 +172,37 @@ const Leaderboard = () => {
                   user={user}
                   position={index + 1}
                   showStat={user.total_wins}
-                  statLabel="Wins"
+                  statLabel="Total Wins"
+                />
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="wordchain" className="mt-4">
+            <div className="space-y-3">
+              {getWordChainLeaderboard().map((user, index) => (
+                <UserRow
+                  key={user.id}
+                  user={user}
+                  position={index + 1}
+                  showStat={user.wordchain_credits}
+                  statLabel="Word Chain Credits"
+                  gameRank={user.wordchain_rank}
+                />
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="category" className="mt-4">
+            <div className="space-y-3">
+              {getCategoryLeaderboard().map((user, index) => (
+                <UserRow
+                  key={user.id}
+                  user={user}
+                  position={index + 1}
+                  showStat={user.category_credits}
+                  statLabel="Category Credits"
+                  gameRank={user.category_rank}
                 />
               ))}
             </div>

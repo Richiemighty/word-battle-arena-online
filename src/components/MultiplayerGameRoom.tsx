@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,8 @@ interface GameSession {
   words_used: string[];
   started_at: string | null;
   ended_at: string | null;
+  countdown_started_at: string | null;
+  game_started_at: string | null;
 }
 
 interface GameMove {
@@ -55,10 +58,13 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
   const [opponent, setOpponent] = useState<Profile | null>(null);
   const [userInput, setUserInput] = useState("");
   const [timeLeft, setTimeLeft] = useState(30);
+  const [gameTimeLeft, setGameTimeLeft] = useState(120); // 2 minutes total game time
+  const [countdownTime, setCountdownTime] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [gameMessages, setGameMessages] = useState<string[]>([]);
   const [lastWord, setLastWord] = useState("");
+  const [turnStartTime, setTurnStartTime] = useState<Date | null>(null);
   const { playSound } = useSoundEffects();
   
   const navigate = useNavigate();
@@ -92,17 +98,46 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
     }
   }, [gameId, currentUserId]);
 
+  // Countdown timer effect
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (gameSession?.status === 'active' && gameSession.current_turn === currentUserId && timeLeft > 0) {
+    if (countdownTime > 0) {
+      timer = setTimeout(() => {
+        setCountdownTime(countdownTime - 1);
+        if (countdownTime === 1) {
+          startActualGame();
+        }
+      }, 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdownTime]);
+
+  // Turn timer effect
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (gameSession?.status === 'active' && gameSession.current_turn === currentUserId && timeLeft > 0 && countdownTime === 0) {
       timer = setTimeout(() => {
         setTimeLeft(timeLeft - 1);
       }, 1000);
-    } else if (timeLeft === 0 && gameSession?.current_turn === currentUserId) {
+    } else if (timeLeft === 0 && gameSession?.current_turn === currentUserId && countdownTime === 0) {
       handleTimeUp();
     }
     return () => clearTimeout(timer);
-  }, [timeLeft, gameSession, currentUserId]);
+  }, [timeLeft, gameSession, currentUserId, countdownTime]);
+
+  // Game timer effect (2 minutes total)
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (gameSession?.status === 'active' && gameTimeLeft > 0 && countdownTime === 0) {
+      timer = setTimeout(() => {
+        setGameTimeLeft(gameTimeLeft - 1);
+        if (gameTimeLeft === 1) {
+          endGameByTime();
+        }
+      }, 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [gameTimeLeft, gameSession, countdownTime]);
 
   const fetchGameSession = async () => {
     try {
@@ -120,7 +155,9 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
         game_mode: gameData.game_mode || 'category',
         words_used: Array.isArray(gameData.words_used) 
           ? gameData.words_used.filter((word): word is string => typeof word === 'string')
-          : []
+          : [],
+        countdown_started_at: gameData.countdown_started_at,
+        game_started_at: gameData.game_started_at
       };
 
       setGameSession(completeGameSession);
@@ -139,6 +176,24 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
         setOpponent(player1);
       }
 
+      // Handle countdown logic
+      if (gameData.status === 'waiting' && !gameData.countdown_started_at) {
+        // Start 5-second countdown
+        await startCountdown();
+      } else if (gameData.countdown_started_at && !gameData.game_started_at) {
+        // Calculate remaining countdown time
+        const countdownStart = new Date(gameData.countdown_started_at).getTime();
+        const now = new Date().getTime();
+        const elapsed = Math.floor((now - countdownStart) / 1000);
+        const remaining = Math.max(0, 5 - elapsed);
+        
+        if (remaining > 0) {
+          setCountdownTime(remaining);
+        } else {
+          startActualGame();
+        }
+      }
+
       // Get last move to set the current word for word chain
       if (completeGameSession.game_mode === 'wordchain') {
         const { data: lastMove } = await supabase
@@ -155,6 +210,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
       }
 
       setTimeLeft(gameData.turn_time_limit || 30);
+      setTurnStartTime(new Date());
     } catch (error) {
       console.error("Error fetching game session:", error);
       toast({
@@ -164,6 +220,48 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const startCountdown = async () => {
+    try {
+      const { error } = await supabase
+        .from("game_sessions")
+        .update({ 
+          countdown_started_at: new Date().toISOString(),
+          status: 'countdown'
+        })
+        .eq("id", gameId);
+
+      if (error) throw error;
+      
+      setCountdownTime(5);
+      toast({
+        title: "Game Starting!",
+        description: "Get ready! Game starts in 5 seconds...",
+      });
+    } catch (error) {
+      console.error("Error starting countdown:", error);
+    }
+  };
+
+  const startActualGame = async () => {
+    try {
+      const { error } = await supabase
+        .from("game_sessions")
+        .update({ 
+          status: 'active',
+          game_started_at: new Date().toISOString()
+        })
+        .eq("id", gameId);
+
+      if (error) throw error;
+      
+      setGameTimeLeft(120); // 2 minutes
+      setTurnStartTime(new Date());
+      await playSound('gameStart');
+    } catch (error) {
+      console.error("Error starting game:", error);
     }
   };
 
@@ -181,10 +279,13 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
               game_mode: newGameData.game_mode || 'category',
               words_used: Array.isArray(newGameData.words_used) 
                 ? newGameData.words_used.filter((word): word is string => typeof word === 'string')
-                : []
+                : [],
+              countdown_started_at: newGameData.countdown_started_at,
+              game_started_at: newGameData.game_started_at
             };
             setGameSession(completeGameSession);
             setTimeLeft(newGameData.turn_time_limit || 30);
+            setTurnStartTime(new Date());
           }
         }
       )
@@ -230,8 +331,15 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
     }
   };
 
+  const calculatePoints = (word: string, timeTaken: number): number => {
+    const basePoints = word.length * 10;
+    // Bonus points for speed (faster = more points)
+    const speedBonus = Math.max(0, (30 - timeTaken) * 2);
+    return basePoints + speedBonus;
+  };
+
   const submitWord = async () => {
-    if (!userInput.trim() || !gameSession || submitting) return;
+    if (!userInput.trim() || !gameSession || submitting || countdownTime > 0) return;
     
     const word = userInput.toLowerCase().trim();
 
@@ -271,8 +379,9 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
 
     setSubmitting(true);
     try {
-      // Calculate points
-      const points = word.length * 10;
+      // Calculate time taken and points
+      const timeTaken = turnStartTime ? Math.floor((new Date().getTime() - turnStartTime.getTime()) / 1000) : 30;
+      const points = calculatePoints(word, timeTaken);
       
       // Add move to database
       const { error: moveError } = await supabase
@@ -282,7 +391,8 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
           player_id: currentUserId,
           word: word,
           points_earned: points,
-          is_valid: true
+          is_valid: true,
+          time_taken: timeTaken
         });
 
       if (moveError) throw moveError;
@@ -302,6 +412,14 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
         updates.player1_score = newScore;
       } else {
         updates.player2_score = newScore;
+      }
+
+      // Check for win conditions
+      if (newScore >= 1000) {
+        updates.status = 'completed';
+        updates.winner_id = currentUserId;
+        updates.ended_at = new Date().toISOString();
+        await endGame(currentUserId, 'score_limit');
       }
 
       const { error: updateError } = await supabase
@@ -329,7 +447,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
   };
 
   const handleTimeUp = async () => {
-    if (gameSession?.current_turn !== currentUserId) return;
+    if (gameSession?.current_turn !== currentUserId || countdownTime > 0) return;
     
     try {
       const opponentId = gameSession.player1_id === currentUserId ? gameSession.player2_id : gameSession.player1_id;
@@ -353,18 +471,84 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
     }
   };
 
-  const forfeitGame = async () => {
+  const endGameByTime = async () => {
+    if (!gameSession) return;
+    
+    const player1Score = gameSession.player1_score;
+    const player2Score = gameSession.player2_score;
+    let winnerId = null;
+    
+    if (player1Score > player2Score) {
+      winnerId = gameSession.player1_id;
+    } else if (player2Score > player1Score) {
+      winnerId = gameSession.player2_id;
+    }
+    // If scores are equal, it's a draw (winnerId remains null)
+    
+    await endGame(winnerId, 'time_limit');
+  };
+
+  const endGame = async (winnerId: string | null, reason: string) => {
     try {
-      const opponentId = gameSession?.player1_id === currentUserId ? gameSession?.player2_id : gameSession?.player1_id;
-      
+      // Update game session
       await supabase
         .from("game_sessions")
         .update({ 
           status: 'completed',
-          winner_id: opponentId,
+          winner_id: winnerId,
           ended_at: new Date().toISOString()
         })
         .eq("id", gameId);
+
+      // Update player statistics
+      if (gameSession) {
+        const player1Score = gameSession.player1_score;
+        const player2Score = gameSession.player2_score;
+        
+        // Update player1 stats
+        await supabase.rpc('update_user_stats_after_game', {
+          user_id: gameSession.player1_id,
+          credits_earned: player1Score,
+          is_winner: winnerId === gameSession.player1_id,
+          is_draw: winnerId === null,
+          game_mode_param: gameSession.game_mode
+        });
+        
+        // Update player2 stats
+        await supabase.rpc('update_user_stats_after_game', {
+          user_id: gameSession.player2_id,
+          credits_earned: player2Score,
+          is_winner: winnerId === gameSession.player2_id,
+          is_draw: winnerId === null,
+          game_mode_param: gameSession.game_mode
+        });
+      }
+
+      let resultMessage = "Game Over!";
+      if (winnerId === currentUserId) {
+        resultMessage = "Congratulations! You won!";
+        await playSound('victory');
+      } else if (winnerId === null) {
+        resultMessage = "It's a draw!";
+      } else {
+        resultMessage = "You lost. Better luck next time!";
+      }
+      
+      toast({
+        title: resultMessage,
+        description: reason === 'time_limit' ? "Game ended due to time limit" : "Winner reached 1000 points!",
+      });
+
+    } catch (error) {
+      console.error("Error ending game:", error);
+    }
+  };
+
+  const forfeitGame = async () => {
+    try {
+      const opponentId = gameSession?.player1_id === currentUserId ? gameSession?.player2_id : gameSession?.player1_id;
+      
+      await endGame(opponentId, 'forfeit');
 
       toast({
         title: "Game forfeited",
@@ -416,6 +600,19 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
           </h1>
         </div>
 
+        {/* Countdown Display */}
+        {countdownTime > 0 && (
+          <Card className="bg-gradient-card mb-6 border-2 border-primary">
+            <CardContent className="p-8 text-center">
+              <div className="text-6xl font-bold gradient-text mb-4">{countdownTime}</div>
+              <p className="text-lg">Game starting soon...</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {gameSession.current_turn === currentUserId ? "You have the first turn advantage!" : "Your opponent goes first!"}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Game Status */}
         <Card className="bg-gradient-card mb-6">
           <CardContent className="p-4">
@@ -425,17 +622,25 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
                 <div className="text-2xl font-bold text-blue-500">{myScore}</div>
               </div>
               <div className="text-center">
-                <Badge variant={gameSession.status === 'active' ? 'default' : 'secondary'}>
-                  {gameSession.status === 'waiting' ? 'Waiting for opponent' : 
-                   gameSession.status === 'active' ? 'Game Active' : 'Game Over'}
-                </Badge>
-                {gameSession.status === 'active' && (
-                  <div className="mt-2">
-                    <Badge variant={isMyTurn ? 'default' : 'outline'}>
-                      {isMyTurn ? 'Your Turn' : `${opponent.display_name || opponent.username}'s Turn`}
-                    </Badge>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Badge variant={gameSession.status === 'active' ? 'default' : 'secondary'}>
+                    {gameSession.status === 'waiting' ? 'Waiting for opponent' : 
+                     gameSession.status === 'countdown' ? 'Starting...' :
+                     gameSession.status === 'active' ? 'Game Active' : 'Game Over'}
+                  </Badge>
+                  {gameSession.status === 'active' && countdownTime === 0 && (
+                    <>
+                      <div>
+                        <Badge variant={isMyTurn ? 'default' : 'outline'}>
+                          {isMyTurn ? 'Your Turn' : `${opponent.display_name || opponent.username}'s Turn`}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Game Time: {Math.floor(gameTimeLeft / 60)}:{(gameTimeLeft % 60).toString().padStart(2, '0')}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-bold">{opponent.display_name || opponent.username}</div>
@@ -446,7 +651,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
         </Card>
 
         {/* Game Controls */}
-        {gameSession.status === 'active' && (
+        {gameSession.status === 'active' && countdownTime === 0 && (
           <Card className="bg-gradient-card mb-6">
             <CardHeader>
               <CardTitle className="text-center">
@@ -481,6 +686,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
                       }
                       className="bg-input"
                       disabled={submitting}
+                      autoFocus
                     />
                     <Button onClick={submitWord} disabled={!userInput.trim() || submitting}>
                       {submitting ? "Submitting..." : "Submit"}
@@ -489,10 +695,13 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
                   
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>Time Remaining</span>
+                      <span>Turn Time Remaining</span>
                       <span>{timeLeft}s</span>
                     </div>
                     <Progress value={(timeLeft / 30) * 100} className="h-2" />
+                    <p className="text-xs text-muted-foreground text-center">
+                      Faster submissions earn bonus points!
+                    </p>
                   </div>
                 </>
               ) : (
@@ -511,7 +720,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
               <CardTitle className="text-sm">Words Used ({gameSession.words_used.length})</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                 {gameSession.words_used.map((word, index) => (
                   <Badge key={index} variant="outline" className="text-xs">
                     {word}
@@ -524,7 +733,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
 
         {/* Game Messages */}
         {gameMessages.length > 0 && (
-          <Card className="bg-gradient-card">
+          <Card className="bg-gradient-card mb-6">
             <CardHeader>
               <CardTitle className="text-sm">Game Log</CardTitle>
             </CardHeader>
@@ -538,9 +747,25 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
           </Card>
         )}
 
+        {/* Game Rules */}
+        <Card className="bg-gradient-card mb-6">
+          <CardHeader>
+            <CardTitle className="text-sm">Game Rules</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-muted-foreground space-y-1">
+            <p>• Faster submissions earn bonus points</p>
+            <p>• First to reach 1000 points wins</p>
+            <p>• Game ends after 2 minutes - highest score wins</p>
+            <p>• No repeated words allowed</p>
+            {gameSession.game_mode === 'wordchain' && (
+              <p>• Each word must start with the last letter of the previous word</p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Forfeit Button */}
         {gameSession.status === 'active' && (
-          <div className="text-center mt-6">
+          <div className="text-center">
             <Button variant="outline" onClick={forfeitGame} className="text-destructive">
               Forfeit Game
             </Button>
