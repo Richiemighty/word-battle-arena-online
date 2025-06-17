@@ -16,7 +16,7 @@ const WordChainGameRoom = ({ onBack }: WordChainGameRoomProps) => {
   const [currentWord, setCurrentWord] = useState("WORD");
   const [userInput, setUserInput] = useState("");
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(120);
+  const [timeLeft, setTimeLeft] = useState(180); // 3 minutes = 180 seconds
   const [gameActive, setGameActive] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [usedWords, setUsedWords] = useState<string[]>([]);
@@ -32,8 +32,9 @@ const WordChainGameRoom = ({ onBack }: WordChainGameRoomProps) => {
   const commonWords = [
     "apple", "elephant", "tiger", "rain", "night", "tree", "egg", "gold", "dog", "game",
     "mouse", "sun", "net", "top", "pen", "note", "earth", "hat", "table", "energy",
-    "yellow", "water", "road", "dance", "eye", "egg", "green", "nest", "time", "end",
-    "door", "rock", "key", "yarn", "new", "wind", "duck", "king", "garden", "north"
+    "yellow", "water", "road", "dance", "eye", "green", "nest", "time", "end",
+    "door", "rock", "key", "yarn", "new", "wind", "duck", "king", "garden", "north",
+    "great", "eat", "team", "mean", "near", "dear", "year", "hear", "clear", "tear"
   ];
 
   useEffect(() => {
@@ -78,7 +79,7 @@ const WordChainGameRoom = ({ onBack }: WordChainGameRoomProps) => {
     setGameActive(true);
     setGameOver(false);
     setScore(0);
-    setTimeLeft(120);
+    setTimeLeft(180); // 3 minutes
     setUsedWords([]);
     setFeedback("");
     setStreak(0);
@@ -110,6 +111,20 @@ const WordChainGameRoom = ({ onBack }: WordChainGameRoomProps) => {
     }
   }, [usedWords]);
 
+  const calculatePoints = (word: string): number => {
+    let basePoints = 15; // Base 15 credits as requested
+    
+    // Bonus for longer words (5 points per extra letter beyond 3)
+    if (word.length > 3) {
+      basePoints += (word.length - 3) * 5;
+    }
+    
+    // Streak bonus
+    basePoints += streak * 2;
+    
+    return basePoints;
+  };
+
   const submitWord = async () => {
     if (!userInput.trim() || !gameActive) return;
 
@@ -123,11 +138,11 @@ const WordChainGameRoom = ({ onBack }: WordChainGameRoomProps) => {
         !usedWords.includes(word)) {
       
       await playSound('correct');
-      const points = word.length * 10 + (streak * 5);
+      const points = calculatePoints(word);
       setScore(prev => prev + points);
       setUsedWords(prev => [...prev, word]);
       setStreak(prev => prev + 1);
-      setFeedback(`Correct! +${points} points`);
+      setFeedback(`Correct! +${points} credits`);
       
       // Generate computer response
       const lastLetter = word[word.length - 1];
@@ -167,7 +182,7 @@ const WordChainGameRoom = ({ onBack }: WordChainGameRoomProps) => {
     setGameActive(false);
     setGameOver(false);
     setScore(0);
-    setTimeLeft(120);
+    setTimeLeft(180);
     setUsedWords([]);
     setFeedback("");
     setStreak(0);
@@ -178,7 +193,7 @@ const WordChainGameRoom = ({ onBack }: WordChainGameRoomProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 p-4 pb-20">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
@@ -213,7 +228,7 @@ const WordChainGameRoom = ({ onBack }: WordChainGameRoomProps) => {
           <Card className="bg-gradient-card">
             <CardContent className="p-4 text-center">
               <Clock className="h-5 w-5 text-blue-500 mx-auto mb-1" />
-              <div className="text-lg font-bold">{timeLeft}</div>
+              <div className="text-lg font-bold">{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</div>
               <p className="text-xs text-muted-foreground">Time Left</p>
             </CardContent>
           </Card>
@@ -241,9 +256,10 @@ const WordChainGameRoom = ({ onBack }: WordChainGameRoomProps) => {
               <div className="text-center">
                 <p className="text-muted-foreground mb-4">
                   Create word chains! Each word must start with the last letter of the previous word.
+                  Get 15 credits per word + bonuses for longer words and streaks!
                 </p>
                 <Button onClick={startGame} className="bg-gradient-battle hover:opacity-90">
-                  Start Word Chain
+                  Start Word Chain (3 mins)
                 </Button>
               </div>
             )}
@@ -295,9 +311,9 @@ const WordChainGameRoom = ({ onBack }: WordChainGameRoomProps) => {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Time Progress</span>
-                    <span>{timeLeft}s</span>
+                    <span>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
                   </div>
-                  <Progress value={(timeLeft / 120) * 100} className="h-2" />
+                  <Progress value={(timeLeft / 180) * 100} className="h-2" />
                 </div>
               </>
             )}
@@ -305,7 +321,7 @@ const WordChainGameRoom = ({ onBack }: WordChainGameRoomProps) => {
             {gameOver && (
               <div className="text-center space-y-4">
                 <div className="space-y-2">
-                  <h3 className="text-xl font-bold">Final Score: {score}</h3>
+                  <h3 className="text-xl font-bold">Final Score: {score} credits</h3>
                   {isNewHighScore && (
                     <div className="animate-bounce-in">
                       <Badge className="bg-yellow-500 text-black">
@@ -325,7 +341,7 @@ const WordChainGameRoom = ({ onBack }: WordChainGameRoomProps) => {
                     New Game
                   </Button>
                   <Button variant="outline" onClick={onBack}>
-                    Back to Dashboard
+                    Back to Practice
                   </Button>
                 </div>
               </div>

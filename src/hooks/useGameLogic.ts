@@ -11,7 +11,8 @@ const commonWords = [
   "door", "rock", "key", "yarn", "new", "wind", "duck", "king", "garden", "north",
   "cat", "bat", "rat", "hat", "mat", "fat", "sat", "pat", "vat", "chat",
   "car", "bar", "far", "jar", "tar", "war", "star", "scar", "char", "czar",
-  "book", "look", "took", "cook", "hook", "nook", "brook", "crook", "shook"
+  "book", "look", "took", "cook", "hook", "nook", "brook", "crook", "shook",
+  "great", "eat", "team", "mean", "near", "dear", "year", "hear", "clear", "tear"
 ];
 
 // Category words
@@ -49,10 +50,17 @@ export const useGameLogic = () => {
   }, []);
 
   const calculatePoints = useCallback((word: string, timeTaken: number): number => {
-    const basePoints = word.length * 10;
-    // Bonus points for speed (faster = more points)
-    const speedBonus = Math.max(0, (30 - timeTaken) * 2);
-    return basePoints + speedBonus;
+    let basePoints = 15; // Base 15 credits for word chain as requested
+    
+    // Bonus for longer words (5 points per extra letter beyond 3)
+    if (word.length > 3) {
+      basePoints += (word.length - 3) * 5;
+    }
+    
+    // Speed bonus (faster = more points, up to 15 bonus points)
+    const speedBonus = Math.max(0, (30 - timeTaken) * 0.5);
+    
+    return Math.floor(basePoints + speedBonus);
   }, []);
 
   const submitWord = useCallback(async (
