@@ -1,14 +1,12 @@
 
 import { useState, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Trophy, Target, Clock, Users, Crown, Link } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
-import { useSoundEffects } from "@/hooks/useSoundEffects";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import { useGameLogic } from "@/hooks/useGameLogic";
-
-// Import the smaller components
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 import GameCountdown from "@/components/multiplayer/GameCountdown";
 import GameStatus from "@/components/multiplayer/GameStatus";
 import GameControls from "@/components/multiplayer/GameControls";
@@ -23,27 +21,17 @@ interface GameSession {
   current_turn: string;
   player1_score: number;
   player2_score: number;
-  winner_id: string | null;
   status: string;
   category: string;
   game_mode: string;
+  words_used: string[];
   time_limit: number;
   turn_time_limit: number;
-  words_used: string[];
-  started_at: string | null;
-  ended_at: string | null;
+  max_credits: number;
+  winner_id: string | null;
   countdown_started_at: string | null;
   game_started_at: string | null;
-}
-
-interface GameMove {
-  id: string;
-  game_id: string;
-  player_id: string;
-  word: string;
-  points_earned: number;
-  is_valid: boolean;
-  created_at: string;
+  ended_at: string | null;
 }
 
 interface Profile {
@@ -58,142 +46,68 @@ interface MultiplayerGameRoomProps {
 }
 
 const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps) => {
-  const [gameSession, setGameSession] = useState<GameSession | null>(null);
-  const [currentPlayer, setCurrentPlayer] = useState<Profile | null>(null);
-  const [opponent, setOpponent] = useState<Profile | null>(null);
-  const [userInput, setUserInput] = useState("");
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [gameTimeLeft, setGameTimeLeft] = useState(120); // 2 minutes total game time
-  const [countdownTime, setCountdownTime] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [gameMessages, setGameMessages] = useState<string[]>([]);
-  const [lastWord, setLastWord] = useState("");
-  const [turnStartTime, setTurnStartTime] = useState<Date | null>(null);
-  const { playSound } = useSoundEffects();
-  const { isValidWord, submitWord, submitting } = useGameLogic();
-  
   const navigate = useNavigate();
+  const [gameSession, setGameSession] = useState<GameSession | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [userInput, setUserInput] = useState("");
+  const [countdownTime, setCountdownTime] = useState(0);
+  const [gameTimeLeft, setGameTimeLeft] = useState(0);
+  const [turnTimeLeft, setTurnTimeLeft] = useState(30);
+  const [turnStartTime, setTurnStartTime] = useState<Date | null>(null);
+  const [currentPlayerProfile, setCurrentPlayerProfile] = useState<Profile | null>(null);
+  const [opponentProfile, setOpponentProfile] = useState<Profile | null>(null);
+  const [gameMessages, setGameMessages] = useState<string[]>([]);
+  const { isValidWord, submitWord, submitting } = useGameLogic();
+  const { playSound } = useSoundEffects();
 
-  useEffect(() => {
-    if (gameId && currentUserId) {
-      fetchGameSession();
-      setupRealtimeSubscription();
-    }
-  }, [gameId, currentUserId]);
+  // Get last word for word chain logic
+  const getLastWord = useCallback(() => {
+    if (!gameSession || gameSession.words_used.length === 0) return "";
+    return gameSession.words_used[gameSession.words_used.length - 1];
+  }, [gameSession]);
 
-  // Countdown timer effect
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (countdownTime > 0) {
-      timer = setTimeout(() => {
-        setCountdownTime(countdownTime - 1);
-        if (countdownTime === 1) {
-          startActualGame();
-        }
-      }, 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [countdownTime]);
+  // Check if it's current user's turn
+  const isMyTurn = gameSession?.current_turn === currentUserId && gameSession?.status === 'active';
 
-  // Turn timer effect
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (gameSession?.status === 'active' && gameSession.current_turn === currentUserId && timeLeft > 0 && countdownTime === 0) {
-      timer = setTimeout(() => {
-        setTimeLeft(timeLeft - 1);
-      }, 1000);
-    } else if (timeLeft === 0 && gameSession?.current_turn === currentUserId && countdownTime === 0) {
-      handleTimeUp();
-    }
-    return () => clearTimeout(timer);
-  }, [timeLeft, gameSession, currentUserId, countdownTime]);
-
-  // Game timer effect (2 minutes total)
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (gameSession?.status === 'active' && gameTimeLeft > 0 && countdownTime === 0) {
-      timer = setTimeout(() => {
-        setGameTimeLeft(gameTimeLeft - 1);
-        if (gameTimeLeft === 1) {
-          endGameByTime();
-        }
-      }, 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [gameTimeLeft, gameSession, countdownTime]);
-
-  const fetchGameSession = async () => {
+  // Fetch game session and profiles
+  const fetchGameSession = useCallback(async () => {
     try {
-      const { data: gameData, error: gameError } = await supabase
+      const { data: sessionData, error: sessionError } = await supabase
         .from("game_sessions")
         .select("*")
         .eq("id", gameId)
         .single();
 
-      if (gameError) throw gameError;
+      if (sessionError) throw sessionError;
 
-      // Ensure the game session has all required properties with proper type handling
-      const completeGameSession: GameSession = {
-        ...gameData,
-        game_mode: gameData.game_mode || 'category',
-        words_used: Array.isArray(gameData.words_used) 
-          ? gameData.words_used.filter((word): word is string => typeof word === 'string')
-          : [],
-        countdown_started_at: gameData.countdown_started_at,
-        game_started_at: gameData.game_started_at
-      };
-
-      setGameSession(completeGameSession);
+      console.log("Game session fetched:", sessionData);
+      setGameSession(sessionData);
 
       // Fetch player profiles
-      const [{ data: player1 }, { data: player2 }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", gameData.player1_id).single(),
-        supabase.from("profiles").select("*").eq("id", gameData.player2_id).single()
-      ]);
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, username, display_name")
+        .in("id", [sessionData.player1_id, sessionData.player2_id]);
 
-      if (currentUserId === gameData.player1_id) {
-        setCurrentPlayer(player1);
-        setOpponent(player2);
-      } else {
-        setCurrentPlayer(player2);
-        setOpponent(player1);
-      }
+      if (profilesError) throw profilesError;
 
-      // Handle countdown logic
-      if (gameData.status === 'waiting' && !gameData.countdown_started_at) {
-        // Start 5-second countdown
+      const currentPlayer = profiles.find(p => p.id === currentUserId);
+      const opponent = profiles.find(p => p.id !== currentUserId);
+      
+      setCurrentPlayerProfile(currentPlayer || null);
+      setOpponentProfile(opponent || null);
+
+      // Handle game state transitions
+      if (sessionData.status === 'waiting') {
+        // Check if both players are present, start countdown
+        console.log("Starting countdown...");
         await startCountdown();
-      } else if (gameData.countdown_started_at && !gameData.game_started_at) {
-        // Calculate remaining countdown time
-        const countdownStart = new Date(gameData.countdown_started_at).getTime();
-        const now = new Date().getTime();
-        const elapsed = Math.floor((now - countdownStart) / 1000);
-        const remaining = Math.max(0, 5 - elapsed);
-        
-        if (remaining > 0) {
-          setCountdownTime(remaining);
-        } else {
-          startActualGame();
-        }
+      } else if (sessionData.status === 'countdown') {
+        handleCountdown(sessionData);
+      } else if (sessionData.status === 'active') {
+        handleActiveGame(sessionData);
       }
 
-      // Get last move to set the current word for word chain
-      if (completeGameSession.game_mode === 'wordchain') {
-        const { data: lastMove } = await supabase
-          .from("game_moves")
-          .select("word")
-          .eq("game_id", gameId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        if (lastMove) {
-          setLastWord(lastMove.word);
-        }
-      }
-
-      setTimeLeft(gameData.turn_time_limit || 30);
-      setTurnStartTime(new Date());
     } catch (error) {
       console.error("Error fetching game session:", error);
       toast({
@@ -204,132 +118,157 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
     } finally {
       setLoading(false);
     }
-  };
+  }, [gameId, currentUserId]);
 
   const startCountdown = async () => {
     try {
       const { error } = await supabase
         .from("game_sessions")
         .update({ 
-          countdown_started_at: new Date().toISOString(),
-          status: 'countdown'
+          status: 'countdown',
+          countdown_started_at: new Date().toISOString()
         })
         .eq("id", gameId);
 
       if (error) throw error;
-      
-      setCountdownTime(5);
-      toast({
-        title: "Game Starting!",
-        description: "Get ready! Game starts in 5 seconds...",
-      });
     } catch (error) {
       console.error("Error starting countdown:", error);
     }
   };
 
-  const startActualGame = async () => {
+  const handleCountdown = (session: GameSession) => {
+    if (!session.countdown_started_at) return;
+    
+    const countdownStart = new Date(session.countdown_started_at).getTime();
+    const now = new Date().getTime();
+    const elapsed = Math.floor((now - countdownStart) / 1000);
+    const remaining = Math.max(0, 5 - elapsed);
+    
+    setCountdownTime(remaining);
+    
+    if (remaining === 0) {
+      startGame();
+    }
+  };
+
+  const handleActiveGame = (session: GameSession) => {
+    if (!session.game_started_at) return;
+    
+    const gameStart = new Date(session.game_started_at).getTime();
+    const now = new Date().getTime();
+    const gameElapsed = Math.floor((now - gameStart) / 1000);
+    const gameRemaining = Math.max(0, session.time_limit - gameElapsed);
+    
+    setGameTimeLeft(gameRemaining);
+    
+    // Handle turn timing
+    if (isMyTurn) {
+      setTurnStartTime(new Date());
+      setTurnTimeLeft(session.turn_time_limit);
+    }
+    
+    // Check if game should end due to time limit
+    if (gameRemaining === 0) {
+      endGame();
+    }
+  };
+
+  const startGame = async () => {
     try {
       const { error } = await supabase
         .from("game_sessions")
-        .update({ 
+        .update({
           status: 'active',
-          game_started_at: new Date().toISOString()
+          game_started_at: new Date().toISOString(),
         })
         .eq("id", gameId);
 
       if (error) throw error;
       
-      setGameTimeLeft(120); // 2 minutes
-      setTurnStartTime(new Date());
       await playSound('gameStart');
     } catch (error) {
       console.error("Error starting game:", error);
     }
   };
 
-  const setupRealtimeSubscription = () => {
-    const channel = supabase
-      .channel(`game_${gameId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'game_sessions', filter: `id=eq.${gameId}` },
-        (payload) => {
-          if (payload.new) {
-            const newGameData = payload.new as any;
-            const completeGameSession: GameSession = {
-              ...newGameData,
-              game_mode: newGameData.game_mode || 'category',
-              words_used: Array.isArray(newGameData.words_used) 
-                ? newGameData.words_used.filter((word): word is string => typeof word === 'string')
-                : [],
-              countdown_started_at: newGameData.countdown_started_at,
-              game_started_at: newGameData.game_started_at
-            };
-            setGameSession(completeGameSession);
-            setTimeLeft(newGameData.turn_time_limit || 30);
-            setTurnStartTime(new Date());
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'game_moves' },
-        (payload) => {
-          if (payload.new && payload.new.game_id === gameId) {
-            const move = payload.new as GameMove;
-            if (gameSession?.game_mode === 'wordchain') {
-              setLastWord(move.word);
-            }
-            if (move.player_id !== currentUserId) {
-              playSound('notification');
-            }
-          }
-        }
-      )
-      .subscribe();
+  const endGame = async () => {
+    if (!gameSession) return;
+    
+    try {
+      // Determine winner based on scores
+      let winnerId = null;
+      if (gameSession.player1_score > gameSession.player2_score) {
+        winnerId = gameSession.player1_id;
+      } else if (gameSession.player2_score > gameSession.player1_score) {
+        winnerId = gameSession.player2_id;
+      }
+      // If scores are equal, it's a draw (winnerId remains null)
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+      const { error } = await supabase
+        .from("game_sessions")
+        .update({
+          status: 'completed',
+          winner_id: winnerId,
+          ended_at: new Date().toISOString()
+        })
+        .eq("id", gameId);
+
+      if (error) throw error;
+
+      // Update player statistics
+      const isWinner = winnerId === currentUserId;
+      const isDraw = winnerId === null;
+      const currentPlayerScore = gameSession.player1_id === currentUserId ? 
+        gameSession.player1_score : gameSession.player2_score;
+
+      await supabase.rpc("update_user_stats_after_game", {
+        user_id: currentUserId,
+        credits_earned: currentPlayerScore,
+        is_winner: isWinner,
+        is_draw: isDraw,
+        game_mode_param: gameSession.game_mode
+      });
+
+      if (isWinner) {
+        await playSound('win');
+        addGameMessage("🎉 You won! Great job!");
+      } else if (isDraw) {
+        await playSound('draw');
+        addGameMessage("🤝 It's a draw! Well played!");
+      } else {
+        await playSound('lose');
+        addGameMessage("😔 You lost this time. Better luck next round!");
+      }
+
+    } catch (error) {
+      console.error("Error ending game:", error);
+    }
   };
 
   const handleSubmitWord = async () => {
-    if (!userInput.trim() || !gameSession || submitting || countdownTime > 0) return;
-    
+    if (!gameSession || !userInput.trim() || submitting || !isMyTurn) return;
+
     const word = userInput.toLowerCase().trim();
-
-    if (gameSession.status !== 'active') {
-      toast({
-        title: "Game not active",
-        description: "Wait for the game to start",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (gameSession.current_turn !== currentUserId) {
-      toast({
-        title: "Not your turn",
-        description: "Wait for your opponent to play",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!isValidWord(word, gameSession.game_mode, gameSession.category, lastWord, gameSession.words_used)) {
-      let errorMessage = "Invalid word!";
+    const lastWord = getLastWord();
+    
+    // Validate word based on game mode
+    const isValid = isValidWord(word, gameSession.game_mode, gameSession.category, lastWord, gameSession.words_used);
+    
+    if (!isValid) {
       if (gameSession.game_mode === 'wordchain' && lastWord) {
-        errorMessage = `Word must start with "${lastWord[lastWord.length - 1].toUpperCase()}"`;
-      } else if (gameSession.game_mode === 'category') {
-        errorMessage = `Word must be in the ${gameSession.category} category`;
+        const requiredLetter = lastWord[lastWord.length - 1].toUpperCase();
+        toast({
+          title: "Invalid Word",
+          description: `Word must start with "${requiredLetter}" and be a valid English word`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Invalid Word",
+          description: "Please enter a valid word for this category",
+          variant: "destructive",
+        });
       }
-      
-      toast({
-        title: "Invalid word",
-        description: errorMessage,
-        variant: "destructive",
-      });
       return;
     }
 
@@ -340,132 +279,100 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
       currentUserId,
       turnStartTime,
       (submittedWord, points) => {
-        playSound('correct');
         setUserInput("");
-        setLastWord(submittedWord);
-        setGameMessages(prev => [...prev, `You played: ${submittedWord} (+${points} points)`]);
+        addGameMessage(`You played "${submittedWord}" for ${points} credits!`);
+        playSound('correct');
       }
     );
 
-    if (success && gameSession.player1_id === currentUserId ? gameSession.player1_score : gameSession.player2_score >= 1000) {
-      await endGame(currentUserId, 'score_limit');
+    if (success) {
+      // Reset turn timer for opponent
+      setTurnStartTime(null);
+      setTurnTimeLeft(30);
     }
   };
 
-  const handleTimeUp = async () => {
-    if (gameSession?.current_turn !== currentUserId || countdownTime > 0) return;
-    
-    try {
-      const opponentId = gameSession.player1_id === currentUserId ? gameSession.player2_id : gameSession.player1_id;
-      
-      await supabase
-        .from("game_sessions")
-        .update({ 
-          current_turn: opponentId,
-          turn_time_limit: 30
-        })
-        .eq("id", gameId);
-
-      toast({
-        title: "Time's up!",
-        description: "Your turn has been skipped",
-        variant: "destructive",
-      });
-      
-    } catch (error) {
-      console.error("Error handling time up:", error);
-    }
+  const addGameMessage = (message: string) => {
+    setGameMessages(prev => [...prev.slice(-4), message]);
   };
 
-  const endGameByTime = async () => {
-    if (!gameSession) return;
-    
-    const player1Score = gameSession.player1_score;
-    const player2Score = gameSession.player2_score;
-    let winnerId = null;
-    
-    if (player1Score > player2Score) {
-      winnerId = gameSession.player1_id;
-    } else if (player2Score > player1Score) {
-      winnerId = gameSession.player2_id;
+  // Set up real-time subscription
+  useEffect(() => {
+    fetchGameSession();
+
+    const channel = supabase
+      .channel('game-session-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'game_sessions',
+          filter: `id=eq.${gameId}`
+        },
+        (payload) => {
+          console.log("Game session change:", payload);
+          if (payload.new) {
+            setGameSession(payload.new as GameSession);
+            
+            const newSession = payload.new as GameSession;
+            if (newSession.status === 'countdown') {
+              handleCountdown(newSession);
+            } else if (newSession.status === 'active') {
+              handleActiveGame(newSession);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [gameId, fetchGameSession]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (countdownTime > 0) {
+      const timer = setTimeout(() => {
+        setCountdownTime(prev => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
     }
-    // If scores are equal, it's a draw (winnerId remains null)
-    
-    await endGame(winnerId, 'time_limit');
-  };
+  }, [countdownTime]);
 
-  const endGame = async (winnerId: string | null, reason: string) => {
-    try {
-      // Update game session
-      await supabase
-        .from("game_sessions")
-        .update({ 
-          status: 'completed',
-          winner_id: winnerId,
-          ended_at: new Date().toISOString()
-        })
-        .eq("id", gameId);
-
-      // Update player statistics
-      if (gameSession) {
-        const player1Score = gameSession.player1_score;
-        const player2Score = gameSession.player2_score;
-        
-        // Update player1 stats
-        await supabase.rpc('update_user_stats_after_game', {
-          user_id: gameSession.player1_id,
-          credits_earned: player1Score,
-          is_winner: winnerId === gameSession.player1_id,
-          is_draw: winnerId === null,
-          game_mode_param: gameSession.game_mode
+  // Game timer
+  useEffect(() => {
+    if (gameTimeLeft > 0 && gameSession?.status === 'active') {
+      const timer = setTimeout(() => {
+        setGameTimeLeft(prev => {
+          const newTime = prev - 1;
+          if (newTime === 0) {
+            endGame();
+          }
+          return newTime;
         });
-        
-        // Update player2 stats
-        await supabase.rpc('update_user_stats_after_game', {
-          user_id: gameSession.player2_id,
-          credits_earned: player2Score,
-          is_winner: winnerId === gameSession.player2_id,
-          is_draw: winnerId === null,
-          game_mode_param: gameSession.game_mode
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameTimeLeft, gameSession?.status]);
+
+  // Turn timer
+  useEffect(() => {
+    if (isMyTurn && turnTimeLeft > 0 && gameSession?.status === 'active') {
+      const timer = setTimeout(() => {
+        setTurnTimeLeft(prev => {
+          const newTime = prev - 1;
+          if (newTime === 0) {
+            // Auto-skip turn if time runs out
+            handleSubmitWord();
+          }
+          return newTime;
         });
-      }
-
-      let resultMessage = "Game Over!";
-      if (winnerId === currentUserId) {
-        resultMessage = "Congratulations! You won!";
-        await playSound('victory');
-      } else if (winnerId === null) {
-        resultMessage = "It's a draw!";
-      } else {
-        resultMessage = "You lost. Better luck next time!";
-      }
-      
-      toast({
-        title: resultMessage,
-        description: reason === 'time_limit' ? "Game ended due to time limit" : "Winner reached 1000 points!",
-      });
-
-    } catch (error) {
-      console.error("Error ending game:", error);
+      }, 1000);
+      return () => clearTimeout(timer);
     }
-  };
-
-  const forfeitGame = async () => {
-    try {
-      const opponentId = gameSession?.player1_id === currentUserId ? gameSession?.player2_id : gameSession?.player1_id;
-      
-      await endGame(opponentId, 'forfeit');
-
-      toast({
-        title: "Game forfeited",
-        description: "You have forfeited the game",
-      });
-
-      navigate("/dashboard");
-    } catch (error) {
-      console.error("Error forfeiting game:", error);
-    }
-  };
+  }, [isMyTurn, turnTimeLeft, gameSession?.status]);
 
   if (loading) {
     return (
@@ -475,7 +382,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
     );
   }
 
-  if (!gameSession || !currentPlayer || !opponent) {
+  if (!gameSession || !currentPlayerProfile || !opponentProfile) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 flex items-center justify-center">
         <div className="text-center">
@@ -486,39 +393,35 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
     );
   }
 
-  const isMyTurn = gameSession.current_turn === currentUserId;
-  const myScore = gameSession.player1_id === currentUserId ? gameSession.player1_score : gameSession.player2_score;
-  const opponentScore = gameSession.player1_id === currentUserId ? gameSession.player2_score : gameSession.player1_score;
-  const GameModeIcon = gameSession.game_mode === 'wordchain' ? Link : Target;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 p-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Button variant="outline" onClick={() => navigate("/dashboard")} size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <h1 className="text-xl sm:text-2xl font-bold gradient-text flex items-center gap-2">
-            <GameModeIcon className="h-6 w-6" />
-            {gameSession.game_mode === 'wordchain' ? 'Word Chain Battle' : `${gameSession.category} Battle`}
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">
+            {gameSession.game_mode === 'wordchain' ? 'Word Chain Battle' : 'Category Battle'}
           </h1>
         </div>
 
-        {/* Countdown Display */}
-        <GameCountdown 
-          countdownTime={countdownTime}
-          isMyTurn={isMyTurn}
-          opponentName={opponent.display_name || opponent.username}
-        />
+        {/* Game Countdown */}
+        {countdownTime > 0 && (
+          <GameCountdown 
+            countdownTime={countdownTime}
+            isMyTurn={isMyTurn}
+            opponentName={opponentProfile.display_name || opponentProfile.username}
+          />
+        )}
 
         {/* Game Status */}
         <GameStatus
-          currentPlayerName={currentPlayer.display_name || currentPlayer.username}
-          opponentName={opponent.display_name || opponent.username}
-          myScore={myScore}
-          opponentScore={opponentScore}
+          currentPlayerName={currentPlayerProfile.display_name || currentPlayerProfile.username}
+          opponentName={opponentProfile.display_name || opponentProfile.username}
+          myScore={gameSession.player1_id === currentUserId ? gameSession.player1_score : gameSession.player2_score}
+          opponentScore={gameSession.player1_id === currentUserId ? gameSession.player2_score : gameSession.player1_score}
           gameStatus={gameSession.status}
           isMyTurn={isMyTurn}
           gameTimeLeft={gameTimeLeft}
@@ -530,34 +433,25 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
           <GameControls
             gameMode={gameSession.game_mode}
             category={gameSession.category}
-            lastWord={lastWord}
+            lastWord={getLastWord()}
             isMyTurn={isMyTurn}
             userInput={userInput}
             setUserInput={setUserInput}
             onSubmitWord={handleSubmitWord}
             submitting={submitting}
-            timeLeft={timeLeft}
-            opponentName={opponent.display_name || opponent.username}
+            timeLeft={turnTimeLeft}
+            opponentName={opponentProfile.display_name || opponentProfile.username}
           />
         )}
 
-        {/* Used Words */}
+        {/* Words Used */}
         <WordsUsed wordsUsed={gameSession.words_used} />
 
         {/* Game Messages */}
         <GameMessages messages={gameMessages} />
 
         {/* Game Rules */}
-        <GameRules gameMode={gameSession.game_mode} />
-
-        {/* Forfeit Button */}
-        {gameSession.status === 'active' && (
-          <div className="text-center">
-            <Button variant="outline" onClick={forfeitGame} className="text-destructive">
-              Forfeit Game
-            </Button>
-          </div>
-        )}
+        <GameRules gameMode={gameSession.game_mode} category={gameSession.category} />
       </div>
     </div>
   );

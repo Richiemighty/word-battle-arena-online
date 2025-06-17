@@ -12,7 +12,8 @@ const commonWords = [
   "cat", "bat", "rat", "hat", "mat", "fat", "sat", "pat", "vat", "chat",
   "car", "bar", "far", "jar", "tar", "war", "star", "scar", "char", "czar",
   "book", "look", "took", "cook", "hook", "nook", "brook", "crook", "shook",
-  "great", "eat", "team", "mean", "near", "dear", "year", "hear", "clear", "tear"
+  "great", "eat", "team", "mean", "near", "dear", "year", "hear", "clear", "tear",
+  "word", "lord", "ford", "cord", "sword", "board", "heard", "world", "bird"
 ];
 
 // Category words
@@ -32,20 +33,28 @@ export const useGameLogic = () => {
   const isValidWord = useCallback((word: string, gameMode: string, category: string, lastWord: string, wordsUsed: string[]): boolean => {
     const lowerWord = word.toLowerCase().trim();
     
+    // Check if word was already used
+    if (wordsUsed.includes(lowerWord)) {
+      return false;
+    }
+    
     if (gameMode === 'wordchain') {
       // For word chain, check if word exists and follows chain rules
-      if (!lastWord) return commonWords.includes(lowerWord) || lowerWord.length >= 3;
+      const isValidEnglishWord = commonWords.includes(lowerWord) || lowerWord.length >= 3;
+      
+      if (!lastWord) {
+        // First word can be any valid word
+        return isValidEnglishWord;
+      }
       
       const lastLetter = lastWord[lastWord.length - 1].toLowerCase();
       const firstLetter = lowerWord[0].toLowerCase();
       
-      return firstLetter === lastLetter && 
-             (commonWords.includes(lowerWord) || lowerWord.length >= 3) &&
-             !wordsUsed.includes(lowerWord);
+      return firstLetter === lastLetter && isValidEnglishWord;
     } else {
       // For category mode, check if word belongs to category
       const categoryWordList = categoryWords[category as keyof typeof categoryWords] || [];
-      return categoryWordList.includes(lowerWord) && !wordsUsed.includes(lowerWord);
+      return categoryWordList.includes(lowerWord);
     }
   }, []);
 
@@ -58,7 +67,7 @@ export const useGameLogic = () => {
     }
     
     // Speed bonus (faster = more points, up to 15 bonus points)
-    const speedBonus = Math.max(0, (30 - timeTaken) * 0.5);
+    const speedBonus = Math.max(0, Math.min(15, (30 - timeTaken) * 0.5));
     
     return Math.floor(basePoints + speedBonus);
   }, []);
@@ -110,13 +119,9 @@ export const useGameLogic = () => {
         updates.player2_score = newScore;
       }
 
-      // Check for win conditions
-      if (newScore >= 1000) {
-        updates.status = 'completed';
-        updates.winner_id = currentUserId;
-        updates.ended_at = new Date().toISOString();
-      }
-
+      // Don't end game based on score, let it continue for full 3 minutes
+      // Only end if time runs out or manually ended
+      
       const { error: updateError } = await supabase
         .from("game_sessions")
         .update(updates)
