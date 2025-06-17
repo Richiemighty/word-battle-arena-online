@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useSoundEffects = () => {
-  const playSound = useCallback(async (soundType: 'correct' | 'incorrect' | 'win' | 'lose' | 'notification' | 'click' | 'countdown') => {
+  const playSound = useCallback(async (soundType: 'correct' | 'incorrect' | 'win' | 'lose' | 'notification' | 'click' | 'countdown' | 'gameStart' | 'victory') => {
     try {
       // Check if user has sound enabled
       const { data: { user } } = await supabase.auth.getUser();
@@ -27,7 +27,9 @@ export const useSoundEffects = () => {
         lose: [330, 247, 196],
         notification: [800, 600],
         click: [600],
-        countdown: [440, 440, 440, 880]
+        countdown: [440, 440, 440, 880],
+        gameStart: [523, 659, 784],
+        victory: [523, 659, 784, 1047, 1319]
       };
 
       const freq = frequencies[soundType];
@@ -41,7 +43,7 @@ export const useSoundEffects = () => {
           gainNode.connect(audioContext.destination);
           
           oscillator.frequency.setValueAtTime(freq[i], audioContext.currentTime);
-          oscillator.type = soundType === 'win' ? 'sine' : soundType === 'lose' ? 'sawtooth' : 'square';
+          oscillator.type = soundType === 'win' || soundType === 'victory' || soundType === 'gameStart' ? 'sine' : soundType === 'lose' ? 'sawtooth' : 'square';
           
           gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);

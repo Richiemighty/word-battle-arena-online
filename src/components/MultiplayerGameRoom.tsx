@@ -1,15 +1,20 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Trophy, Target, Clock, Users, Crown, Link } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
+import { useGameLogic } from "@/hooks/useGameLogic";
+
+// Import the smaller components
+import GameCountdown from "@/components/multiplayer/GameCountdown";
+import GameStatus from "@/components/multiplayer/GameStatus";
+import GameControls from "@/components/multiplayer/GameControls";
+import WordsUsed from "@/components/multiplayer/WordsUsed";
+import GameMessages from "@/components/multiplayer/GameMessages";
+import GameRules from "@/components/multiplayer/GameRules";
 
 interface GameSession {
   id: string;
@@ -61,35 +66,13 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
   const [gameTimeLeft, setGameTimeLeft] = useState(120); // 2 minutes total game time
   const [countdownTime, setCountdownTime] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [gameMessages, setGameMessages] = useState<string[]>([]);
   const [lastWord, setLastWord] = useState("");
   const [turnStartTime, setTurnStartTime] = useState<Date | null>(null);
   const { playSound } = useSoundEffects();
+  const { isValidWord, submitWord, submitting } = useGameLogic();
   
   const navigate = useNavigate();
-
-  // Common words for validation
-  const commonWords = [
-    "apple", "elephant", "tiger", "rain", "night", "tree", "egg", "gold", "dog", "game",
-    "mouse", "sun", "net", "top", "pen", "note", "earth", "hat", "table", "energy",
-    "yellow", "water", "road", "dance", "eye", "green", "nest", "time", "end",
-    "door", "rock", "key", "yarn", "new", "wind", "duck", "king", "garden", "north",
-    "cat", "bat", "rat", "hat", "mat", "fat", "sat", "pat", "vat", "chat",
-    "car", "bar", "far", "jar", "tar", "war", "star", "scar", "char", "czar",
-    "book", "look", "took", "cook", "hook", "nook", "brook", "crook", "shook"
-  ];
-
-  // Category words
-  const categoryWords = {
-    Animals: ["lion", "tiger", "elephant", "giraffe", "zebra", "monkey", "bear", "wolf", "fox", "rabbit"],
-    Countries: ["france", "japan", "brazil", "canada", "germany", "italy", "spain", "mexico", "india", "china"],
-    Food: ["pizza", "burger", "pasta", "sushi", "salad", "cake", "bread", "rice", "soup", "fruit"],
-    Movies: ["avatar", "titanic", "batman", "superman", "starwars", "marvel", "disney", "action", "comedy", "drama"],
-    Sports: ["football", "basketball", "tennis", "swimming", "running", "boxing", "golf", "baseball", "soccer", "hockey"],
-    Colors: ["red", "blue", "green", "yellow", "orange", "purple", "pink", "black", "white", "brown"],
-    Fruits: ["apple", "banana", "orange", "mango", "grape", "strawberry", "pineapple", "watermelon", "kiwi", "peach"]
-  };
 
   useEffect(() => {
     if (gameId && currentUserId) {
@@ -311,34 +294,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
     };
   };
 
-  const isValidWord = (word: string): boolean => {
-    const lowerWord = word.toLowerCase().trim();
-    
-    if (gameSession?.game_mode === 'wordchain') {
-      // For word chain, check if word exists and follows chain rules
-      if (!lastWord) return commonWords.includes(lowerWord) || lowerWord.length >= 3;
-      
-      const lastLetter = lastWord[lastWord.length - 1].toLowerCase();
-      const firstLetter = lowerWord[0].toLowerCase();
-      
-      return firstLetter === lastLetter && 
-             (commonWords.includes(lowerWord) || lowerWord.length >= 3) &&
-             !gameSession.words_used.includes(lowerWord);
-    } else {
-      // For category mode, check if word belongs to category
-      const categoryWordList = categoryWords[gameSession?.category as keyof typeof categoryWords] || [];
-      return categoryWordList.includes(lowerWord) && !gameSession.words_used.includes(lowerWord);
-    }
-  };
-
-  const calculatePoints = (word: string, timeTaken: number): number => {
-    const basePoints = word.length * 10;
-    // Bonus points for speed (faster = more points)
-    const speedBonus = Math.max(0, (30 - timeTaken) * 2);
-    return basePoints + speedBonus;
-  };
-
-  const submitWord = async () => {
+  const handleSubmitWord = async () => {
     if (!userInput.trim() || !gameSession || submitting || countdownTime > 0) return;
     
     const word = userInput.toLowerCase().trim();
@@ -361,7 +317,7 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
       return;
     }
 
-    if (!isValidWord(word)) {
+    if (!isValidWord(word, gameSession.game_mode, gameSession.category, lastWord, gameSession.words_used)) {
       let errorMessage = "Invalid word!";
       if (gameSession.game_mode === 'wordchain' && lastWord) {
         errorMessage = `Word must start with "${lastWord[lastWord.length - 1].toUpperCase()}"`;
@@ -377,72 +333,22 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
       return;
     }
 
-    setSubmitting(true);
-    try {
-      // Calculate time taken and points
-      const timeTaken = turnStartTime ? Math.floor((new Date().getTime() - turnStartTime.getTime()) / 1000) : 30;
-      const points = calculatePoints(word, timeTaken);
-      
-      // Add move to database
-      const { error: moveError } = await supabase
-        .from("game_moves")
-        .insert({
-          game_id: gameId,
-          player_id: currentUserId,
-          word: word,
-          points_earned: points,
-          is_valid: true,
-          time_taken: timeTaken
-        });
-
-      if (moveError) throw moveError;
-
-      // Update game session
-      const opponentId = gameSession.player1_id === currentUserId ? gameSession.player2_id : gameSession.player1_id;
-      const currentScore = gameSession.player1_id === currentUserId ? gameSession.player1_score : gameSession.player2_score;
-      const newScore = currentScore + points;
-      
-      const updates: any = {
-        current_turn: opponentId,
-        words_used: [...gameSession.words_used, word],
-        turn_time_limit: 30
-      };
-
-      if (gameSession.player1_id === currentUserId) {
-        updates.player1_score = newScore;
-      } else {
-        updates.player2_score = newScore;
+    const success = await submitWord(
+      word,
+      gameSession,
+      gameId,
+      currentUserId,
+      turnStartTime,
+      (submittedWord, points) => {
+        playSound('correct');
+        setUserInput("");
+        setLastWord(submittedWord);
+        setGameMessages(prev => [...prev, `You played: ${submittedWord} (+${points} points)`]);
       }
+    );
 
-      // Check for win conditions
-      if (newScore >= 1000) {
-        updates.status = 'completed';
-        updates.winner_id = currentUserId;
-        updates.ended_at = new Date().toISOString();
-        await endGame(currentUserId, 'score_limit');
-      }
-
-      const { error: updateError } = await supabase
-        .from("game_sessions")
-        .update(updates)
-        .eq("id", gameId);
-
-      if (updateError) throw updateError;
-
-      await playSound('correct');
-      setUserInput("");
-      setLastWord(word);
-      setGameMessages(prev => [...prev, `You played: ${word} (+${points} points)`]);
-      
-    } catch (error) {
-      console.error("Error submitting word:", error);
-      toast({
-        title: "Error",
-        description: "Failed to submit word",
-        variant: "destructive",
-      });
-    } finally {
-      setSubmitting(false);
+    if (success && gameSession.player1_id === currentUserId ? gameSession.player1_score : gameSession.player2_score >= 1000) {
+      await endGame(currentUserId, 'score_limit');
     }
   };
 
@@ -601,167 +507,48 @@ const MultiplayerGameRoom = ({ gameId, currentUserId }: MultiplayerGameRoomProps
         </div>
 
         {/* Countdown Display */}
-        {countdownTime > 0 && (
-          <Card className="bg-gradient-card mb-6 border-2 border-primary">
-            <CardContent className="p-8 text-center">
-              <div className="text-6xl font-bold gradient-text mb-4">{countdownTime}</div>
-              <p className="text-lg">Game starting soon...</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                {gameSession.current_turn === currentUserId ? "You have the first turn advantage!" : "Your opponent goes first!"}
-              </p>
-            </CardContent>
-          </Card>
-        )}
+        <GameCountdown 
+          countdownTime={countdownTime}
+          isMyTurn={isMyTurn}
+          opponentName={opponent.display_name || opponent.username}
+        />
 
         {/* Game Status */}
-        <Card className="bg-gradient-card mb-6">
-          <CardContent className="p-4">
-            <div className="flex justify-between items-center">
-              <div className="text-center">
-                <div className="text-lg font-bold">{currentPlayer.display_name || currentPlayer.username}</div>
-                <div className="text-2xl font-bold text-blue-500">{myScore}</div>
-              </div>
-              <div className="text-center">
-                <div className="space-y-2">
-                  <Badge variant={gameSession.status === 'active' ? 'default' : 'secondary'}>
-                    {gameSession.status === 'waiting' ? 'Waiting for opponent' : 
-                     gameSession.status === 'countdown' ? 'Starting...' :
-                     gameSession.status === 'active' ? 'Game Active' : 'Game Over'}
-                  </Badge>
-                  {gameSession.status === 'active' && countdownTime === 0 && (
-                    <>
-                      <div>
-                        <Badge variant={isMyTurn ? 'default' : 'outline'}>
-                          {isMyTurn ? 'Your Turn' : `${opponent.display_name || opponent.username}'s Turn`}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Game Time: {Math.floor(gameTimeLeft / 60)}:{(gameTimeLeft % 60).toString().padStart(2, '0')}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold">{opponent.display_name || opponent.username}</div>
-                <div className="text-2xl font-bold text-red-500">{opponentScore}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <GameStatus
+          currentPlayerName={currentPlayer.display_name || currentPlayer.username}
+          opponentName={opponent.display_name || opponent.username}
+          myScore={myScore}
+          opponentScore={opponentScore}
+          gameStatus={gameSession.status}
+          isMyTurn={isMyTurn}
+          gameTimeLeft={gameTimeLeft}
+          countdownTime={countdownTime}
+        />
 
         {/* Game Controls */}
         {gameSession.status === 'active' && countdownTime === 0 && (
-          <Card className="bg-gradient-card mb-6">
-            <CardHeader>
-              <CardTitle className="text-center">
-                {gameSession.game_mode === 'wordchain' && lastWord && (
-                  <div className="mb-4">
-                    <p className="text-sm text-muted-foreground">Last word:</p>
-                    <Badge variant="secondary" className="text-lg px-4 py-2">{lastWord.toUpperCase()}</Badge>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Your word must start with "{lastWord[lastWord.length - 1].toUpperCase()}"
-                    </p>
-                  </div>
-                )}
-                {gameSession.game_mode === 'category' && (
-                  <div className="mb-4">
-                    <p className="text-sm text-muted-foreground">Category:</p>
-                    <Badge variant="secondary" className="text-lg px-4 py-2">{gameSession.category}</Badge>
-                  </div>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {isMyTurn ? (
-                <>
-                  <div className="flex gap-2">
-                    <Input
-                      value={userInput}
-                      onChange={(e) => setUserInput(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && submitWord()}
-                      placeholder={gameSession.game_mode === 'wordchain' ? 
-                        (lastWord ? `Enter word starting with "${lastWord[lastWord.length - 1].toUpperCase()}"` : "Enter your word") :
-                        `Enter a ${gameSession.category.toLowerCase()} word`
-                      }
-                      className="bg-input"
-                      disabled={submitting}
-                      autoFocus
-                    />
-                    <Button onClick={submitWord} disabled={!userInput.trim() || submitting}>
-                      {submitting ? "Submitting..." : "Submit"}
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Turn Time Remaining</span>
-                      <span>{timeLeft}s</span>
-                    </div>
-                    <Progress value={(timeLeft / 30) * 100} className="h-2" />
-                    <p className="text-xs text-muted-foreground text-center">
-                      Faster submissions earn bonus points!
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">Waiting for {opponent.display_name || opponent.username} to play...</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <GameControls
+            gameMode={gameSession.game_mode}
+            category={gameSession.category}
+            lastWord={lastWord}
+            isMyTurn={isMyTurn}
+            userInput={userInput}
+            setUserInput={setUserInput}
+            onSubmitWord={handleSubmitWord}
+            submitting={submitting}
+            timeLeft={timeLeft}
+            opponentName={opponent.display_name || opponent.username}
+          />
         )}
 
         {/* Used Words */}
-        {gameSession.words_used && gameSession.words_used.length > 0 && (
-          <Card className="bg-gradient-card mb-6">
-            <CardHeader>
-              <CardTitle className="text-sm">Words Used ({gameSession.words_used.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                {gameSession.words_used.map((word, index) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {word}
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <WordsUsed wordsUsed={gameSession.words_used} />
 
         {/* Game Messages */}
-        {gameMessages.length > 0 && (
-          <Card className="bg-gradient-card mb-6">
-            <CardHeader>
-              <CardTitle className="text-sm">Game Log</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {gameMessages.map((message, index) => (
-                  <p key={index} className="text-xs text-muted-foreground">{message}</p>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <GameMessages messages={gameMessages} />
 
         {/* Game Rules */}
-        <Card className="bg-gradient-card mb-6">
-          <CardHeader>
-            <CardTitle className="text-sm">Game Rules</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground space-y-1">
-            <p>• Faster submissions earn bonus points</p>
-            <p>• First to reach 1000 points wins</p>
-            <p>• Game ends after 2 minutes - highest score wins</p>
-            <p>• No repeated words allowed</p>
-            {gameSession.game_mode === 'wordchain' && (
-              <p>• Each word must start with the last letter of the previous word</p>
-            )}
-          </CardContent>
-        </Card>
+        <GameRules gameMode={gameSession.game_mode} />
 
         {/* Forfeit Button */}
         {gameSession.status === 'active' && (
